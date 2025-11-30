@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Digital Access Management (DAM) - Login</title>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <style>
+    :root{
+      --accent:#ff7a1a;
+      --accent-600:#e86e14;
+      --bg:#0b1220;          /* page background */
+      --surface:#0f172a;     /* card */
+      --border:#1f2937;      /* hairlines */
+      --text:#e5e7eb;        /* main text */
+      --muted:#9ca3af;       /* secondary text */
+      --ring:#f59e0b;
+      --shadow:0 18px 48px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.35);
+    }
+
+    *{ box-sizing:border-box }
+    html,body{ height:100% }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 600px at -20% -20%, #101a33 0%, transparent 50%),
+        radial-gradient(1000px 500px at 120% 120%, #1a2542 0%, transparent 50%),
+        var(--bg);
+      display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+
+    .login-card{
+      width: min(380px, 92vw);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 26px 22px 22px;
+    }
+
+    .logo-wrap{
+      display:flex; justify-content:center; margin-bottom:8px;
+    }
+    .logo{
+      width:120px; height:auto; filter: drop-shadow(0 6px 16px rgba(0,0,0,.35));
+    }
+
+    h2{
+      margin:6px 0 18px; text-align:center; font-weight:800; letter-spacing:.01em;
+      color:#fff;
+    }
+    .sub{
+      text-align:center; color:var(--muted); font-size:.95rem; margin-top:-6px; margin-bottom:16px;
+    }
+
+    label{ display:block; font-size:.9rem; color:var(--muted); margin:8px 0 6px }
+
+    .field{ position:relative }
+    input{
+      width:100%; padding:12px 14px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#0b1224;
+      color:var(--text);
+      transition:border-color .15s ease, box-shadow .15s ease, background .2s ease;
+    }
+    input::placeholder{ color:#93a4bd }
+    input:focus{
+      outline:0; border-color:var(--ring);
+      box-shadow:0 0 0 4px color-mix(in srgb, var(--ring) 22%, transparent);
+      background:#0d1730;
+    }
+
+    /* Eye toggle inside password box */
+    .toggle-pass{
+      position:absolute; right:10px; top:50%; transform:translateY(-50%);
+      border:none; background:transparent; cursor:pointer;
+      padding:6px; border-radius:8px; color:#cbd5e1;
+    }
+    .toggle-pass:hover{ background:#0b1220 }
+
+    .btn{
+      width:100%; margin-top:14px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-600));
+      color:#fff; border:none; padding:12px 14px; border-radius:12px;
+      font-weight:800; letter-spacing:.02em; cursor:pointer;
+      box-shadow: var(--shadow);
+      transition: filter .2s ease, transform .06s ease;
+    }
+    .btn:hover{ filter:brightness(1.02) }
+    .btn:active{ transform: translateY(1px) }
+
+    .error{
+      margin-top:12px; font-size:.95rem;
+      background:#2b1212; border:1px solid #7f1d1d; color:#fca5a5;
+      padding:10px 12px; border-radius:10px; text-align:center;
+    }
+
+    /* Centering the Recaptcha */
+    .g-recaptcha {
+        display: flex;
+        justify-content: center;
+        margin: 15px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-card" role="main">
+    <div class="logo-wrap">
+      <img src="/static/images/logo.png" class="logo" alt="DAM Logo">
+    </div>
+    <h2>Digital Access Management</h2>
+    <div class="sub">Welcome</div>
+
+    <form id="loginForm" method="POST" action="/login">
+      <label for="userid">User ID</label>
+      <div class="field">
+        <input type="text" name="username" id="userid" placeholder="e.g. admin or 23-0717" required autocomplete="username">
+      </div>
+
+      <label for="password">Password</label>
+      <div class="field">
+        <input type="password" name="password" id="password" placeholder="Enter your password" required autocomplete="current-password" />
+        <button type="button" class="toggle-pass" id="togglePw" aria-label="Show password" title="Show/Hide password">
+          <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 5c-5.5 0-9.3 4.4-10 6 .7 1.6 4.5 6 10 6s9.3-4.4 10-6c-.7-1.6-4.5-6-10-6Zm0 10a4 4 0 1 1 .001-8.001A4 4 0 0 1 12 15Z"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="g-recaptcha" data-sitekey="6Le9hxYsAAAAANyiJS0eFieiARuBIQJNHQjEYskl"></div>
+
+      <button class="btn" type="submit">Login</button>
+
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+    </form>
+
+    {% if otp_error %}
+      <div class="error">{{ otp_error }}</div>
+    {% endif %}
+    
+  </div>
+
+<script>
+    // Password show/hide logic
+    (function(){
+      const pw = document.getElementById('password');
+      const btn = document.getElementById('togglePw');
+      const icon = document.getElementById('eyeIcon');
+
+      const openPath  = "M12 5c-5.5 0-9.3 4.4-10 6 .7 1.6 4.5 6 10 6s9.3-4.4 10-6c-.7-1.6-4.5-6-10-6Zm0 10a4 4 0 1 1 .001-8.001A4 4 0 0 1 12 15Z";
+      const closedPath= "M2 5.27 3.28 4 20 20.72 18.73 22l-3.1-3.1c-1.14.37-2.33.57-3.63.57-5.5 0-9.3-4.4-10-6 .42-.99 1.48-2.55 3.06-3.9L2 5.27ZM12 7c1.44 0 2.73.76 3.45 1.89l-1.47 1.47A2 2 0 0 0 12 9a2 2 0 0 0-1.36.53L9.17 7.99A4.01 4.01 0 0 1 12 7Zm8.95 3.62c-.32.48-.79 1.11-1.4 1.76l-1.43-1.43c.41-.45.75-.9 1-.29.33-.38.59-.75.78-1.04-.67-1.54-4.46-6-10-6-.74 0-1.46.07-2.15.2l1.68 1.68c.16-.02.33-.03.5-.03 5.14 0 8.57 3.55 9.02 4.15Z";
+
+      btn.addEventListener('click', () => {
+        const show = pw.type === 'password';
+        pw.type = show ? 'text' : 'password';
+        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        icon.innerHTML = `<path d="${show ? closedPath : openPath}"/>`;
+        pw.focus();
+      });
+
+      // Submit on Enter from any input
+      document.getElementById('loginForm').addEventListener('keydown', e=>{
+        if(e.key === 'Enter'){ e.currentTarget.submit(); }
+      });
+    })();
+  </script>
+
+</body>
+</html>

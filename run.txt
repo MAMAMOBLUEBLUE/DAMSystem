@@ -1,0 +1,50 @@
+cd C:\library-app
+.\.venv\Scripts\activate
+
+
+pip install flask qrcode[pil] pymysql
+
+
+python app.py
+
+
+pip install APScheduler
+
+
+
+$env:SMTP_HOST = "smtp.gmail.com"             # Gmail SMTP server
+$env:SMTP_PORT = "587"                        # Gmail SMTP port for TLS
+$env:SMTP_USER = "isulibrary66@gmail.com"     # Your Gmail email
+$env:SMTP_PASS = "jxlo titm azos xcez"        # Your Gmail App Password
+$env:MAIL_FROM = "Library <isulibrary66@gmail.com>"  # From email (same Gmail)
+
+
+@app.route('/index')
+@admin_required  # <--- PROTECTS THE ROUTE
+def index():
+    return render_template('index.html')
+
+@app.route('/backup')
+@admin_required
+def backup_page():
+    # ... (rest of code)
+
+@app.route('/books')
+@admin_required
+def books_list():
+    # ... (rest of code)
+
+@app.route('/transaction')
+@admin_required
+def transaction_page():
+    # ... (rest of code)
+
+@app.route('/payment')
+@admin_required
+def payment_page():
+    # ... (rest of code)
+    
+@app.route('/reports/transactions')
+@admin_required
+def reports_transactions():
+    # ... (rest of code)

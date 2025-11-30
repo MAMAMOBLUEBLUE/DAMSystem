@@ -1,0 +1,304 @@
+/* ===== main.css – DAM Dark Theme (Login Style) ===== */
+
+/* Design tokens - Extracted from your Login Page */
+:root{
+  --accent: #ff7a1a;
+  --accent-600: #e86e14;
+  
+  /* Dark Theme Base */
+  --bg: #0b1220;            /* Deep dark background */
+  --surface: #0f172a;       /* Card/Sidebar background */
+  --border: #1f2937;        /* Subtle borders */
+  --text: #e5e7eb;          /* Main text (Light Gray) */
+  --muted-text: #9ca3af;    /* Secondary text */
+  
+  --ring: #f59e0b;          /* Focus ring (Amber) */
+  --shadow: 0 10px 30px rgba(0,0,0,.5), 0 4px 6px rgba(0,0,0,.3);
+  
+  /* Metrics Card Specifics */
+  --metric-bg: #111827;
+}
+
+/* Base */
+*{ box-sizing:border-box }
+html,body{ height:100% }
+
+body{
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: var(--text);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  
+  /* The specific Login Page Background */
+  background: 
+    radial-gradient(1200px 600px at -20% -20%, #101a33 0%, transparent 50%),
+    radial-gradient(1000px 500px at 120% 120%, #1a2542 0%, transparent 50%),
+    var(--bg);
+  background-attachment: fixed; /* Keeps gradient distinct while scrolling */
+}
+
+h1,h2,h3{ color: #fff; margin:0 0 .6rem }
+h1{ font-weight:800; letter-spacing:-.01em }
+h2{ font-weight:700 }
+h3{ font-weight:600 }
+
+.small{ font-size:.9rem; color: var(--muted-text) }
+.container{ max-width:1100px; margin: 24px auto; padding: 0 16px }
+
+/* Links & nav */
+a{ color: var(--accent); text-decoration:none }
+a:hover{ text-decoration:underline }
+nav a{ display:inline-block; margin-right:12px; padding:8px 10px; border-radius:8px; color: var(--text); }
+nav a:hover{ background: rgba(255, 122, 26, 0.15); color: var(--accent); }
+
+/* Buttons */
+button, .btn{
+  background: linear-gradient(90deg, var(--accent), var(--accent-600));
+  color: #fff; border:none; padding:10px 16px;
+  border-radius:10px; cursor:pointer; font-weight:700; letter-spacing:.01em;
+  box-shadow: var(--shadow);
+  transition: transform .06s ease, filter .2s ease;
+  margin: -2px;
+}
+button:hover, .btn:hover{ filter:brightness(1.1) }
+button:active, .btn:active{ transform: translateY(1px) }
+button:disabled, .btn:disabled{ opacity:.6; cursor:not-allowed; box-shadow:none; filter:grayscale(1); }
+
+/* Inputs (Dark Style like Login) */
+input, select{
+  width: 250px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0b1224; /* Very dark input bg */
+  color: var(--text);
+  transition: border-color .15s ease, box-shadow .15s ease;
+  margin-bottom: 20px;
+}
+input::placeholder { color: #4b5563; }
+input:focus, select:focus{
+  outline: 0;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ring) 22%, transparent);
+  background: #0d1730;
+}
+
+/* Tables (Dark Mode) */
+table{ 
+  width:100%; border-collapse:collapse; 
+  background: var(--surface); 
+  border-radius:12px; overflow:hidden; 
+  box-shadow: var(--shadow); 
+  border: 1px solid var(--border);
+}
+th, td{ padding:12px 14px; border-bottom:1px solid var(--border); text-align:left }
+th{ 
+  background: #111827; /* Dark header */
+  color: #fff; font-weight:700; 
+}
+td { color: var(--text); }
+tbody tr:nth-child(even){ background-color: rgba(255,255,255, 0.02) } /* Very subtle stripe */
+tbody tr:hover{ background: rgba(255, 122, 26, 0.1); } /* Orange tint on hover */
+
+/* Generic card */
+.card{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: var(--shadow);
+}
+
+/* Layout (Sidebar / Content / Metrics) */
+.sidebar{
+  position:fixed; inset:0 auto 0 0; width:220px; 
+  background: var(--surface);
+  border-right: 1px solid var(--border); 
+  padding: 16px 14px; overflow: auto;
+  box-shadow: var(--shadow);
+  z-index: 10;
+}
+.content{
+  margin-left:220px; margin-right:280px; min-height:100vh;
+  padding:28px 24px;
+}
+.metrics{
+  position:fixed; inset:0 0 0 auto; width:280px; 
+  background: var(--surface);
+  border-left: 1px solid var(--border); 
+  padding: 16px 14px; overflow: auto;
+  box-shadow: var(--shadow);
+  z-index: 10;
+}
+.brand{ font-weight:800; color:var(--accent); margin: 4px 0 20px; letter-spacing:.02em; font-size: 1.1rem; }
+
+.sidebar nav a{
+  display:block; padding:10px 12px; margin:6px 0; border-radius:10px; 
+  color: var(--muted-text); font-weight:600;
+}
+.sidebar nav a:hover{ 
+  background: rgba(255, 122, 26, 0.1); color: var(--accent); 
+}
+.sidebar nav .logout{ color: #ef4444; margin-top: 20px; }
+.sidebar nav .logout:hover { background: rgba(239, 68, 68, 0.1); color: #f87171; }
+
+/* Metrics cards */
+.metrics h3{ margin:6px 0 12px; color: #fff; text-align:center; font-weight:800 }
+.metrics .grid{ display:grid; gap:12px }
+.metrics .card{
+  background: var(--metric-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: none; /* flatten metrics inside panel */
+}
+.metrics .card .val{ font-size:30px; font-weight:800; color: #fff; }
+.metrics .card .lbl{ font-size:12px; color: var(--muted-text) }
+.metrics .hint{ font-size:12px; color: var(--muted-text); text-align:center }
+
+/* Flash messages */
+.flash{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 14px; margin:10px 0; border-radius:12px; border:1px solid transparent;
+  box-shadow: var(--shadow);
+}
+.flash button{ background:transparent; border:none; font-size:18px; cursor:pointer; color:inherit; box-shadow:none; }
+.flash.error  { background: rgba(127, 29, 29, 0.2); color: #fca5a5; border-color: #7f1d1d; }
+.flash.success{ background: rgba(6, 95, 70, 0.2); color: #6ee7b7; border-color: #065f46; }
+.flash.info   { background: rgba(55, 48, 163, 0.2); color: #a5b4fc; border-color: #3730a3; }
+
+
+.student-add .top-bar{
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 20px; color: #fff; font-size:20px; font-weight:700;
+  display:flex; justify-content:space-between; align-items:center; 
+  box-shadow: var(--shadow);
+}
+.student-add .top-bar button{
+  background: var(--bg); color: var(--accent); border: 1px solid var(--border);
+}
+.student-add .container{
+  max-width:1100px; margin:28px auto; 
+  background: var(--surface); 
+  padding:26px;
+  border-radius:16px; box-shadow: var(--shadow); border:1px solid var(--border);
+}
+.student-add h1, .student-add h3{ color: #fff; text-align:center; margin-bottom:20px }
+.student-add form.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px 20px; margin-bottom:24px }
+.student-add label{ font-weight:600; color: var(--muted-text); margin-bottom:6px; display:block }
+
+.student-add input[type="text"], .student-add input[type="password"]{
+  width: 100%; /* Full width in grid */
+  background: #0b1224; border-color: var(--border); color: #fff;
+}
+
+.student-add .password-wrapper{ position:relative }
+.student-add .toggle-btn{
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  background:none; border:none; color:var(--accent); font-size:13px; cursor:pointer; font-weight:700;
+  box-shadow: none;
+}
+.student-add button[type="submit"]{
+  grid-column: span 2; margin-top:6px; 
+  background: linear-gradient(90deg, var(--accent), var(--accent-600));
+}
+
+.student-add .search-area{
+  margin:10px 0 16px; display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+}
+.student-add .search-area input[type="text"]{ width:260px; margin-bottom:0; }
+.student-add .back-btn{
+  background: var(--border); color: #fff; border:none; padding:8px 12px; border-radius:10px; font-weight:700;
+}
+.student-add .back-btn:hover{ filter:brightness(1.2) }
+
+/* Responsive */
+@media (max-width: 1100px){
+  .content{ margin-right:0 }
+  .metrics{ position:static; width:auto; border-left:none; margin:0 16px; border-radius: 14px; margin-bottom: 20px; }
+}
+@media (max-width: 900px){
+  .sidebar{ position:static; width:auto; border-right:none; margin:0 16px 12px; border-radius:14px }
+  .content{ margin-left:0; padding:20px 16px }
+}
+
+/* =========================
+   Books Table - Dark Theme Override
+   ========================= */
+.table-books {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface) !important; /* Dark surface */
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+}
+
+/* Reset text to light */
+.table-books *, 
+.card .table-books * {
+  color: var(--text) !important; 
+}
+
+/* Header */
+.table-books thead th {
+  background: #111827 !important; /* Dark header */
+  color: #fff !important;
+  font-weight: 700 !important;
+  padding: 12px 14px !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+/* Cells */
+.table-books td {
+  padding: 12px 14px !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: var(--surface) !important; /* Dark cell */
+}
+
+/* Stripes & Hover */
+.table-books tbody tr:nth-child(even) td { background-color: rgba(255,255,255,0.02) !important; }
+.table-books tbody tr:hover td { background: rgba(255, 122, 26, 0.1) !important; }
+
+/* Inline edit row */
+.table-books tr.edit-row td {
+  background: rgba(245, 158, 11, 0.1) !important; /* Amber tint */
+  border-top: 1px dashed var(--accent) !important;
+}
+
+/* Status Pills */
+.table-books .status-tag { 
+  display: inline-block;
+  padding: 2px 10px; 
+  border-radius: 999px; 
+  font-weight: 700; 
+  font-size: 0.85rem;
+}
+/* Adjusted pill colors for Dark Mode readability */
+.table-books .status-tag.available { background: rgba(6, 95, 70, 0.3) !important; color: #6ee7b7 !important; border: 1px solid #065f46; }
+.table-books .status-tag.borrowed  { background: rgba(124, 45, 18, 0.3) !important; color: #fdba74 !important; border: 1px solid #7c2d12; }
+.table-books .status-tag.lost      { background: rgba(127, 29, 29, 0.3) !important; color: #fca5a5 !important; border: 1px solid #7f1d1d; }
+
+/* Pager */
+#pager {
+  display:flex; align-items:center; gap:8px; margin-top:12px; justify-content: flex-end;
+}
+
+/* Reusing status colors from .table-books in mymain.css */
+.book-card .available{
+  color:#1a7f37;
+}
+.book-card .borrowed{
+  color:#b35b00;
+}
+.book-card .lost{
+  color:#b42318;
+}
+
+.book-card .book-body p{
+  margin: 4px 0;
+}

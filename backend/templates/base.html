@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{% block title %}Library{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/mymain.css') }}">
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="brand">Menu</div>
+    <nav>
+      
+      {% if session['role'] == 'admin' %}
+        <a style="color: var(--accent);" href="{{ url_for('index') }}">Home</a>
+        <a style="color: var(--accent);" href="{{ url_for('students_list') }}">Borrower</a>
+        <a style="color: var(--accent);" href="{{ url_for('books_list') }}">Books</a>
+        <a style="color: var(--accent);" href="{{ url_for('transaction_page') }}">Transactions</a>
+        <a style="color: var(--accent);" href="{{ url_for('payment_page') }}">Payments</a>
+        <a style="color: var(--accent);" href="{{ url_for('reports_transactions') }}">Report</a>
+        <!-- NEW BACKUP LINK ADDED HERE -->
+        <a style="color: var(--accent);" href="{{ url_for('backup_page') }}">Backup & Restore</a>
+      {% endif %}
+      
+      <hr>
+      <a class="logout" style="color: var(--accent);" href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% if session['role'] == 'admin' %}
+    <aside class="metrics">
+      <h3 style="color: var(--accent);">Summary</h3>
+      <div id="metric-cards" class="grid">
+        </div>
+    </aside>
+  {% endif %}
+
+<script>
+  // Expose this function to the window object so other templates can call it
+  window.loadMetrics = async function(){
+    try{
+      const res = await fetch('{{ url_for("api_metrics") }}', {cache:"no-store"});
+      if(!res.ok) throw new Error("no metrics");
+      const m = await res.json();
+      const el = document.getElementById('metric-cards');
+      if(el) {
+          el.innerHTML = `
+            ${card('Students', m.students)}
+            ${card('Books', m.books)}
+            ${card('Borrowed', m.borrowed)}
+            ${card('Lost', m.lost)}
+            ${card('Overdue', m.overdue)}
+          `;
+      }
+    }catch(e){
+      console.error("Metrics error", e);
+    }
+  }
+  function card(label, value){
+    return `
+      <div class="card">
+        <div class="val">${value ?? 0}</div>
+        <div class="lbl">${label}</div>
+      </div>`;
+  }
+  
+  // Load immediately
+  window.loadMetrics();
+  </script>
+  {% block scripts %}{% endblock %}
+
+</body>
+</html>

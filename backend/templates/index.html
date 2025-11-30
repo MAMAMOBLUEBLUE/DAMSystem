@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+{% block title %}Admin Home{% endblock %}
+
+{% block content %}
+<h1 style="color: var(--accent); text-align:center;">Dashboard</h1>
+
+<style>
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  .chart-container {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    min-height: 350px;
+  }
+  .chart-container h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    text-align: center;
+    color: var(--accent);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.5rem;
+  }
+  table th, table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  table th {
+    background-color: var(--surface);
+    color: var(--accent);
+  }
+  .table-container {
+    grid-column: span 2;
+  }
+</style>
+
+<div class="chart-grid">
+  <!-- Existing charts -->
+  <div class="chart-container">
+    <h3>Book Status</h3>
+    <canvas id="bookStatusChart"></canvas>
+  </div>
+  
+  <div class="chart-container">
+    <h3>Library Overview</h3>
+    <canvas id="libraryOverviewChart"></canvas>
+  </div>
+  
+  <div class="chart-container">
+    <h3>Top Borrowed Books</h3>
+    <canvas id="topBooksChart"></canvas>
+  </div>
+  
+  <div class="chart-container">
+    <h3>Recent Borrowing Trends</h3>
+    <canvas id="borrowTrendsChart"></canvas>
+  </div>
+
+  <!-- New Top 5 Borrowed Books About to Be Overdue -->
+  <div class="chart-container table-container">
+    <h3>Top 5 Borrowed Books About to Be Overdue</h3>
+    <table id="overdueBooksTable">
+      <thead>
+        <tr>
+          <th>Book Title</th>
+          <th>Student Name</th>
+          <th>Due Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Table rows will be populated with JavaScript -->
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    loadDashboardCharts();
+  });
+
+  async function loadDashboardCharts() {
+    try {
+      const style = getComputedStyle(document.documentElement);
+      const textColor  = style.getPropertyValue('--text').trim()   || '#1f2937';
+      const gridColor  = style.getPropertyValue('--border').trim() || '#e5e7eb';
+      const accentColor= style.getPropertyValue('--accent').trim() || '#ff7a1a';
+      
+      Chart.defaults.color = textColor;
+      Chart.defaults.borderColor = gridColor;
+
+      const [metricsRes, transactionsRes] = await Promise.all([
+        fetch('{{ url_for("api_metrics") }}', { cache: "no-store" }),
+        fetch('{{ url_for("api_transactions") }}?limit=500', { cache: "no-store" }) 
+      ]);
+
+      if (!metricsRes.ok || !transactionsRes.ok) {
+        throw new Error("Could not load all dashboard data");
+      }
+      
+      const m = await metricsRes.json();
+      const t_data = await transactionsRes.json();
+      const transactions = t_data.rows || [];
+
+      createStatusChart(m, accentColor, textColor);
+      createOverviewChart(m, textColor, gridColor);
+      createTopBooksChart(transactions, accentColor, gridColor, textColor);
+      createTrendsChart(transactions, accentColor, gridColor, textColor);
+
+      // Load the Top 5 Borrowed Books About to Be Overdue
+      loadTop5OverdueBooks(transactions);
+    } catch (e) {
+      console.warn("Failed to load dashboard charts:", e);
+      document.querySelector('.chart-grid').innerHTML = 
+        '<p class="hint" style="color: var(--accent); padding: 1rem; text-align: center;">Charts unavailable (Backend may be offline in preview).</p>';
+    }
+  }
+
+  // --- CHART 1: BOOK STATUS ---
+  function createStatusChart(m, accentColor, textColor) {
+    const available = (m.books ?? 0) - (m.borrowed ?? 0) - (m.lost ?? 0);
+    const ctx = document.getElementById('bookStatusChart').getContext('2d');
+    
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Available', 'Borrowed', 'Lost'],
+        datasets: [{
+          data: [available, m.borrowed, m.lost],
+          backgroundColor: [
+            'rgba(75, 192, 192, 0.7)',
+            accentColor + 'B3',
+            'rgba(255, 99, 132, 0.7)'
+          ],
+          borderColor: [
+            'rgba(75, 192, 192, 1)',
+            accentColor,
+            'rgba(255, 99, 132, 1)'
+          ],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top', labels: { color: textColor } }
+        }
+      }
+    });
+  }
+
+  // --- CHART 2: LIBRARY OVERVIEW ---
+  function createOverviewChart(m, textColor, gridColor) {
+    const ctx = document.getElementById('libraryOverviewChart').getContext('2d');
+    
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Students', 'Total Books', 'Overdue'],
+        datasets: [{
+          label: 'Total Count',
+          data: [m.students, m.books, m.overdue],
+          backgroundColor: [
+            'rgba(54, 162, 235, 0.7)',
+            'rgba(153, 102, 255, 0.7)',
+            'rgba(255, 206, 86, 0.7)'
+          ],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, precision: 0, color: textColor },
+            grid: { color: gridColor }
+          },
+          x: {
+            ticks: { color: textColor },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // --- CHART 3: TOP BORROWED BOOKS ---
+  function createTopBooksChart(transactions, accentColor, gridColor, textColor) {
+    const borrows = transactions.filter(t => t.action_type === 'borrow');
+    const bookCounts = new Map();
+
+    borrows.forEach(b => {
+      const title = b.book_title || 'Unknown Title';
+      bookCounts.set(title, (bookCounts.get(title) || 0) + 1);
+    });
+    
+    const sortedBooks = [...bookCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 7);
+    
+    const labels = sortedBooks.map(item => item[0]);
+    const data   = sortedBooks.map(item => item[1]);
+
+    const ctx = document.getElementById('topBooksChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Borrows',
+          data: data,
+          backgroundColor: accentColor + 'B3',
+          borderColor: accentColor,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.raw} borrows`
+            }
+          }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, precision: 0, color: textColor },
+            grid: { color: gridColor }
+          },
+          y: {
+            ticks: { color: textColor },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // --- CHART 4: RECENT BORROWING TRENDS ---
+  function createTrendsChart(transactions, accentColor, gridColor, textColor) {
+    const borrows = transactions.filter(t => t.action_type === 'borrow');
+    const dailyCounts = new Map();
+    
+    borrows.forEach(b => {
+      const dateStr = b.tx_date.split(' ')[0]; // 'YYYY-MM-DD'
+      dailyCounts.set(dateStr, (dailyCounts.get(dateStr) || 0) + 1);
+    });
+    
+    const sortedDailyCounts = [...dailyCounts.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]));
+    
+    const chartData = sortedDailyCounts.map(item => ({
+      x: new Date(item[0]),
+      y: item[1]
+    }));
+
+    const ctx = document.getElementById('borrowTrendsChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [{
+          label: 'Borrows per Day',
+          data: chartData,
+          borderColor: accentColor,
+          backgroundColor: accentColor + '33',
+          fill: true,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              unit: 'day',
+              tooltipFormat: 'MMM d, yyyy'
+            },
+            ticks: { color: textColor },
+            grid: { display: false }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, precision: 0, color: textColor },
+            grid: { color: gridColor }
+          }
+        }
+      }
+    });
+  }
+
+// --- Top 5 Borrowed Books About to Be Overdue ---
+async function loadTop5OverdueBooks(transactions) {
+    const tableBody = document.querySelector("#overdueBooksTable tbody");
+    const now = new Date();
+
+    // Get top 5 books that are about to be overdue within the next 3 days OR are already overdue
+    const overdueBooks = transactions.filter(t => {
+        if (t.action_type !== 'borrow' || t.returned_date) return false; // Ignore returned or non-borrow items
+        // Replace space with T to ensure "YYYY-MM-DDTHH:MM:SS" format for JS
+        const dueDate = new Date(t.due_date.replace(' ', 'T'));
+        const diffInDays = (dueDate - now) / (1000 * 60 * 60 * 24); 
+        
+        // Show if overdue OR due within next 3 days
+        return diffInDays <= 3; 
+    }).slice(0, 5); // Take the top 5
+
+    // Clear the table first
+    tableBody.innerHTML = '';
+
+    overdueBooks.forEach(book => {
+        const row = document.createElement('tr');
+        
+        // --- LOGIC FOR COLORING ---
+        let dueDisplay = book.due_date;
+        // Fix date format for calculation
+        const dueDate = new Date(book.due_date.replace(' ', 'T'));
+        const diffHours = (dueDate - now) / (1000 * 60 * 60);
+
+        if (diffHours < 0) {
+            // Overdue -> Use class from base.html (.due-overdue)
+            dueDisplay = `<span class="due-overdue">${book.due_date}<br><small>⚠️ Warning: Overdue</small></span>`;
+        } else if (diffHours <= 5) {
+            // Due Soon -> Use class from base.html (.due-soon)
+            dueDisplay = `<span class="due-soon">${book.due_date}<br><small>⚠️ Due Soon</small></span>`;
+        }
+
+        row.innerHTML = `
+            <td>${book.book_title || 'Unknown Title'}</td>
+            <td>${book.student_name || 'Unknown Student'}</td>
+            <td>${dueDisplay}</td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+</script>
+
+{% endblock %}

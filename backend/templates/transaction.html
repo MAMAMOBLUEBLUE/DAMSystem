@@ -1,0 +1,751 @@
+{% extends "base.html" %}
+{% block title %}Transactions{% endblock %}
+{% block content %}
+
+<style>
+  /* --- SCANNER & LAYOUT --- */
+  .scanner-container { 
+    background: #000; border-radius: 16px; overflow: hidden; 
+    width: 100%; max-width: 300px; height: 300px; margin: 0 auto 24px auto; 
+    position: relative; box-shadow: var(--shadow); display: flex; justify-content: center; align-items: center;
+  }
+  #reader { width: 100%; height: 100%; object-fit: cover; }
+  #reader video { object-fit: cover; }
+  .tx-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; display: flex; justify-content: center; align-items: center; }
+  .tx-box { width: 200px; height: 200px; position: relative; border: 2px solid rgba(255, 255, 255, 0.5); border-radius: 12px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.6); }
+  .tx-box::before, .tx-box::after, .tx-corner-bl, .tx-corner-br { content: ''; position: absolute; width: 20px; height: 20px; border: 3px solid var(--accent); border-radius: 2px; box-shadow: 0 0 5px var(--accent); }
+  .tx-box::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+  .tx-box::after { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+  .tx-corner-bl { bottom: -2px; left: -2px; border-top: none; border-right: none; }
+  .tx-corner-br { bottom: -2px; right: -2px; border-top: none; border-left: none; }
+  .tx-laser { position: absolute; width: 100%; height: 2px; background: var(--accent); box-shadow: 0 0 10px var(--accent); animation: txScan 2s infinite linear; }
+  @keyframes txScan { 0% { top: 5px; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { top: 195px; opacity: 0; } }
+  #scanStatus { position: absolute; bottom: 40px; width: 100%; text-align: center; color: var(--accent); font-family: monospace; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.8); z-index: 20; pointer-events: none; }
+  .tx-console { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px; }
+  @media (max-width: 900px) { .tx-console { grid-template-columns: 1fr; } }
+  .action-panel, .receipt-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: var(--shadow); height: 100%; display: flex; flex-direction: column; }
+  .receipt-panel { background: #1f2937; color: #fff; gap: 15px; }
+  .receipt-header { border-bottom: 1px dashed #4b5563; padding-bottom: 15px; margin-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+  .live-status { font-size: 0.75rem; background: #22c55e; color: #fff; padding: 2px 8px; border-radius: 12px; font-weight: bold; text-transform: uppercase; }
+  
+  /* --- STATUS BADGE COLORS --- */
+  .status-tag { padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; display: inline-block; width: 90px; text-align: center; letter-spacing: 0.5px; }
+  .status-tag.available { background-color: #22c55e; color: white; }
+  .status-tag.borrowed { background-color: #f97316; color: white; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .status-tag.borrowed:hover { filter: brightness(1.1); }
+  .status-tag.lost { background-color: #ef4444; color: white; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .status-tag.lost:hover { filter: brightness(1.1); }
+  
+  /* NEW: Resolved Status Style (Purple) */
+  .status-tag.resolved { background-color: #8b5cf6; color: white; box-shadow: 0 2px 10px rgba(139, 92, 246, 0.2); }
+
+  .borrow-item { background: var(--bg); border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px; }
+  .borrow-item:hover { background: #1a2438; }
+  .borrow-item.selected { border-color: var(--accent); background: rgba(255, 122, 26, 0.15); }
+  .checkbox-mock { width: 20px; height: 20px; border-radius: 4px; border: 2px solid #6b7280; display: flex; align-items: center; justify-content: center; }
+  .borrow-item.selected .checkbox-mock { background: var(--accent); border-color: var(--accent); }
+  .borrow-item.selected .checkbox-mock::after { content: '✔'; font-size: 14px; color: white; }
+  .info-card-pop { background: rgba(255, 255, 255, 0.1); border-left: 4px solid var(--accent); padding: 15px; border-radius: 8px; display: none; position: relative; animation: slideInRight 0.3s ease-out forwards; }
+  @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  .info-card-pop.active { display: block; }
+  .info-card-pop h4 { margin: 0 0 5px 0; color: var(--accent); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+  .remove-btn { position: absolute; top: 5px; right: 10px; background: none; border: none; color: #9ca3af; cursor: pointer; font-size: 1.2rem; }
+  .remove-btn:hover { color: #ef4444; }
+  .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(5px); }
+  .modal-box { background: var(--surface); padding: 30px; border-radius: 20px; width: 90%; max-width: 420px; border: 1px solid var(--border); box-shadow: var(--shadow); text-align: center; }
+  .modal-btns { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+  .btn-modal { flex: 1; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+  .btn-success { background: #10b981; color: white; }
+  .dt-hidden-export { visibility: hidden; position: absolute; pointer-events: none; opacity: 0; height: 0; width: 0; overflow: hidden; }
+  .resolution-option { display: block; padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; background: var(--bg); }
+  .resolution-option:hover { border-color: var(--accent); background: rgba(255, 122, 26, 0.1); }
+  .resolution-option input { margin-right: 10px; accent-color: var(--accent); }
+  .resolution-lbl { font-weight: bold; color: var(--text); }
+  .resolution-desc { display: block; margin-left: 26px; font-size: 0.85rem; color: var(--muted-text); }
+</style>
+
+<header>
+  <h1 style="color: var(--accent);">Transaction Terminal</h1>
+</header>
+
+<div class="container">
+<div class="scanner-container">
+    <div id="reader"></div>
+    <div class="tx-overlay"><div class="tx-box"><div class="tx-corner-bl"></div><div class="tx-corner-br"></div><div class="tx-laser"></div></div></div>
+    <div id="scanStatus">Initializing Camera...</div>
+    <div id="zoomControls" style="display:none; position: absolute; bottom: 10px; width: 60%; z-index: 50;">
+        <input id="zoomSlider" type="range" min="1" max="5" step="0.1" value="1" style="width:100%; accent-color: var(--accent);">
+    </div>
+</div>
+
+  <div class="tx-console">
+    <div class="action-panel">
+       <h3 style="color: var(--text); margin-top:0;">1. Select Action</h3>
+       <select id="action_type" style="width:100%; margin-bottom: 15px; padding: 14px; font-size: 1.1rem; border-radius: 12px; border: 1px solid var(--border);">
+          <option value="borrow">📚 Borrow Book</option>
+          <option value="return">↩️ Return Book</option>
+          <option value="lost">⚠️ Report Lost</option>
+       </select>
+       <div id="dueBox">
+          <label class="small" style="font-weight:bold;">Due Date (For Borrowing)</label>
+          <input type="datetime-local" id="due_date" style="width:100%; padding: 12px; font-size: 1rem;">
+       </div>
+       <div id="studentBorrowsPanel" style="display:none; flex:1; overflow-y:auto; margin-top:15px; border-top: 1px dashed var(--border); padding-top: 15px;">
+           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+               <h4 style="color: var(--accent); margin:0;">Active Borrows</h4>
+               <small style="color: var(--muted-text);">Select multiple to return</small>
+           </div>
+           <div id="borrowedList"></div>
+           <div id="loadingBorrows" style="display:none; color:var(--muted-text); text-align:center;">Loading...</div>
+           <div id="noBorrowsMsg" style="display:none; color:var(--muted-text); text-align:center; padding:10px;">No borrowed books found.</div>
+       </div>
+       <div id="instructionBox" style="margin-top: auto; padding: 15px; background: var(--bg); border-radius: 12px; border: 1px dashed var(--border); color: var(--muted-text); font-size: 0.9rem;">
+          <p style="margin:0;"><strong>Instructions:</strong></p>
+          <ul style="padding-left: 20px; margin: 5px 0;">
+             <li>Scan Student ID first.</li>
+             <li>If Borrowing: Select book from the table below.</li>
+             <li>If Returning: Select items from the list above.</li>
+          </ul>
+       </div>
+    </div>
+
+    <div class="receipt-panel">
+        <div class="receipt-header">
+            <h3 style="margin:0;">Transaction Receipt</h3>
+            <span class="live-status">Ready</span>
+        </div>
+        <div id="studentCard" class="info-card-pop">
+            <button type="button" class="remove-btn" onclick="clearStudent()">×</button>
+            <h4>Student</h4>
+            <p><strong id="sname" style="font-size: 1.1rem;"></strong></p>
+            <p style="font-family: monospace; color: #9ca3af;" id="sno"></p>
+        </div>
+        <div id="studentPlaceholder" style="text-align:center; color: #6b7280; padding: 15px; border: 1px dashed #4b5563; border-radius: 8px;">Scanning for Student...</div>
+        <div id="bookCard" class="info-card-pop" style="margin-top: 10px;">
+            <button type="button" class="remove-btn" onclick="clearBookSelection()">×</button>
+            <h4>Items Selected</h4>
+            <div id="bookDetailsContent"></div>
+        </div>
+        <div id="bookPlaceholder" style="margin-top:10px; text-align:center; color: #6b7280; padding: 15px; border: 1px dashed #4b5563; border-radius: 8px;">Waiting for Selection...</div>
+        <div style="margin-top: auto; padding-top: 20px;">
+            <button id="submitBtn" class="btn" style="width: 100%; background: #4f46e5; font-size: 1.1rem; padding: 14px;">Confirm Transaction</button>
+        </div>
+    </div>
+  </div>
+
+  <input type="hidden" id="student_number">
+
+  <section class="card" style="margin-bottom: 24px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <h3 style="color: var(--accent); margin:0;">Book Database</h3>
+        <input id="bookAccSearch" placeholder="Search Accession or Title..." style="padding:10px; border:1px solid var(--border); border-radius:8px; width:250px;">
+    </div>
+    <table id="booksTable" class="display" style="width:100%">
+      <thead><tr><th>Title</th><th>Author</th><th>Call No</th><th>Accession</th><th>Status</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+        <h3 style="color: var(--accent); margin:0;">Transaction Log</h3>
+        <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn" onclick="openDateModal()" style="background: var(--surface); color: var(--text); border: 1px solid var(--border);">📅 Filter Date Range</button>
+            <span id="activeFilterLabel" class="small" style="align-self: center; color: var(--accent); font-weight: bold;"></span>
+        </div>
+    </div>
+    <table id="txnTable" class="display" style="width:100%">
+      <thead><tr><th>TX ID</th><th>Student #</th><th>Book</th><th>Action</th><th>Date/Time</th><th>Due Date</th><th>Returned</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</div>
+
+<!-- MODALS -->
+<div id="dateModal" class="modal-overlay">
+  <div class="modal-box">
+    <span class="modal-icon">📅</span>
+    <h3 class="modal-title">Filter Reports</h3>
+    <p class="modal-desc">Select a date range to filter the table.</p>
+    <input type="date" id="minDate" style="width:100%; margin-bottom: 15px; padding:10px;">
+    <input type="date" id="maxDate" style="width:100%; margin-bottom: 20px; padding:10px;">
+    <div class="modal-btns">
+        <button type="button" class="btn-modal btn-primary" onclick="applyDateFilter()">Apply Filter</button>
+        <button type="button" class="btn-modal btn-secondary" onclick="clearDateFilter()">Clear</button>
+    </div>
+    <div style="margin-top: 15px;"><a href="#" onclick="document.getElementById('dateModal').style.display='none'" style="color:var(--muted-text);">Close</a></div>
+  </div>
+</div>
+
+<div id="exportModal" class="modal-overlay">
+  <div class="modal-box">
+    <span class="modal-icon">📄</span>
+    <h3 class="modal-title" id="exportTitle">Confirm Export</h3>
+    <p class="modal-desc" id="exportDesc">Are you sure you want to export?</p>
+    <div class="modal-btns">
+        <button type="button" class="btn-modal btn-primary" id="confirmExportBtn">Yes, Export</button>
+        <button type="button" class="btn-modal btn-secondary" onclick="document.getElementById('exportModal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="successModal" class="modal-overlay">
+  <div class="modal-box" style="border-color: #10b981;">
+    <span class="modal-icon">✅</span>
+    <h3 class="modal-title" style="color: #10b981;">Success!</h3>
+    <p class="modal-desc" id="successMessage">Transaction saved successfully.</p>
+    <div class="modal-btns">
+        <button type="button" class="btn-modal btn-success" onclick="document.getElementById('successModal').style.display='none'">Okay</button>
+    </div>
+  </div>
+</div>
+
+<div id="lostModal" class="modal-overlay">
+  <div class="modal-box" style="text-align: left;">
+    <h3 style="color:#ef4444; margin-top:0; text-align:center;">⚠️ Lost Book Resolution</h3>
+    <p style="text-align:center; color:var(--muted-text); margin-bottom:20px;">How will the student replace this item?</p>
+    <label class="resolution-option">
+        <input type="radio" name="lost_resolution" value="same_book" checked>
+        <span class="resolution-lbl">1. Exact Replacement</span>
+        <span class="resolution-desc">Student will replace with the exact same book edition/title.</span>
+    </label>
+    <label class="resolution-option">
+        <input type="radio" name="lost_resolution" value="similar_value">
+        <span class="resolution-lbl">2. Similar Value/Book</span>
+        <span class="resolution-desc">Student will replace with a different book of same value/subject (Librarian Approved).</span>
+    </label>
+    <div class="modal-btns">
+        <button id="confirmLostBtn" class="btn-modal btn-primary" onclick="submitLostTransaction()">Confirm Report</button>
+        <button class="btn-modal btn-secondary" onclick="document.getElementById('lostModal').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="borrowerModal" class="modal-overlay">
+  <div class="modal-box" style="text-align:left; max-width: 450px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 style="color: var(--accent); margin:0;">Book Status</h3>
+        <button onclick="document.getElementById('borrowerModal').style.display='none'" style="background:none; border:none; color:#fff; font-size:1.2rem; cursor:pointer;">✕</button>
+    </div>
+    <div id="borrowerContent">Loading...</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://cdn.datatables.net/2.0.7/css/dataTables.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/3.0.2/css/buttons.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.0.7/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.0.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.0.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.0.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.2/moment.min.js"></script>
+<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+<script>
+let txnDT, booksDT, html5QrCode;
+let selectedBooks = new Set(); 
+let selectedBookDetails = [];
+let targetExportButtonSelector = null; 
+
+function cleanDate(d) {
+    if (!d || d === 'null' || d === 'None' || d === 'NaN') return '-';
+    if (typeof d === 'string' && (d.includes('0000-00-00') || d === 'Invalid Date')) return '-';
+    return d;
+}
+
+async function showBorrowerInfo(acc, title) {
+    const modal = document.getElementById('borrowerModal');
+    const content = document.getElementById('borrowerContent');
+    
+    // Show modal immediately with loading state
+    modal.style.display = 'flex';
+    content.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner"></div><p style="color:gray; margin-top:10px;">Finding student...</p></div>';
+    
+    try {
+        // Fetch from the new API endpoint
+        const res = await fetch(`/api/book-status/${encodeURIComponent(acc)}`);
+        
+        if(!res.ok) {
+            throw new Error("No record found");
+        }
+        
+        const data = await res.json();
+        
+        // Render the Student Data
+        content.innerHTML = `
+          <div style="text-align:center; margin-bottom:15px;">
+            <p style="color: #9ca3af; font-size: 0.9rem; margin-bottom:5px;">Book Title</p>
+            <h3 style="color:var(--accent); margin:0;">${title}</h3>
+            <span style="font-family:monospace; color:#6b7280; font-size:0.85rem;">${acc}</span>
+          </div>
+
+          <div style="background: #1f2937; padding: 20px; border-radius: 12px; border: 1px solid var(--border);">
+              <div style="display:grid; grid-template-columns: auto 1fr; gap: 10px; align-items:center; margin-bottom:10px;">
+                  <span style="background:#374151; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:50%;">👤</span>
+                  <div>
+                      <div style="font-weight:bold; color:white; font-size:1.1rem;">${data.student_name}</div>
+                      <div style="font-family:monospace; color:var(--accent);">${data.student_number}</div>
+                  </div>
+              </div>
+              
+              <hr style="border-color: #374151; margin: 15px 0;">
+              
+              <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                  <span style="color:#9ca3af;">Last Action:</span>
+                  <span style="color:white;">${data.tx_date}</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                  <span style="color:#9ca3af;">Due Date:</span>
+                  <span style="color:${data.due_date ? '#f97316' : '#9ca3af'};">${data.due_date || 'N/A'}</span>
+              </div>
+              
+              <div style="margin-top:15px; background:#111827; padding:10px; border-radius:8px; font-size:0.9rem;">
+                  <span style="color:#9ca3af;">📧 Contact:</span> <span style="color:white;">${data.contact || 'No email'}</span>
+              </div>
+          </div>
+        `;
+    } catch(e) { 
+        content.innerHTML = `
+            <div style="text-align:center; padding:20px;">
+                <h3 style="color:#ef4444;">✕ Not Found</h3>
+                <p style="color:#9ca3af;">No recent history found for this book accession.</p>
+                <p style="font-family:monospace; color:#6b7280; font-size:0.8rem; margin-top:5px;">${acc}</p>
+            </div>`; 
+    }
+}
+window.openDateModal = function() { document.getElementById('dateModal').style.display = 'flex'; };
+window.applyDateFilter = function() {
+    const min = document.getElementById('minDate').value;
+    const max = document.getElementById('maxDate').value;
+    if(min || max) document.getElementById('activeFilterLabel').textContent = `Filter: ${min} to ${max}`;
+    else document.getElementById('activeFilterLabel').textContent = '';
+    if(txnDT) txnDT.draw();
+    document.getElementById('dateModal').style.display = 'none';
+};
+window.clearDateFilter = function() {
+    document.getElementById('minDate').value = '';
+    document.getElementById('maxDate').value = '';
+    document.getElementById('activeFilterLabel').textContent = '';
+    if(txnDT) txnDT.draw();
+    document.getElementById('dateModal').style.display = 'none';
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Transactions
+    txnDT = new DataTable('#txnTable', {
+        pageLength: 10, ordering: true, order: [[4, 'desc']], dom: 'Bfrtip',
+        buttons: [
+            { extend: 'print', className: 'dt-hidden-export btn-print-real', exportOptions: { modifier: { search: 'applied' } } },
+            { extend: 'csvHtml5', className: 'dt-hidden-export btn-csv-real', exportOptions: { modifier: { search: 'applied' }, format: { body: function (data) { return cleanDate(data); } } } },
+            { text: '🖨️ Print', className: 'btn-export', action: function () { targetExportButtonSelector = '.btn-print-real'; openExportModal('Print Report', 'Print filtered list?'); } },
+            { text: '📄 Export CSV', className: 'btn-export', action: function () { targetExportButtonSelector = '.btn-csv-real'; openExportModal('Export CSV', 'Download CSV?'); } }
+        ],
+        columnDefs: [
+            {
+                targets: 3, // Action Column
+                render: function(data, type, row) {
+                    if (!data) return '-';
+                    
+                    let colorClass = 'available'; 
+                    let label = data;
+                    let isClickable = false;
+
+                    // Get Data needed for popup (Title is Index 2, Accession is Index 8)
+                    const bookTitle = row[2];
+                    const accNum = row[8]; 
+                    
+                    // Check Note (Index 7) for specific resolution types
+                    const note = row[7] || ""; 
+                    
+                    if (data === 'borrow') { 
+                        colorClass = 'borrowed'; 
+                        label = 'Borrowed';
+                        isClickable = true;
+                    }
+                    else if (data === 'lost') { 
+                        colorClass = 'lost'; 
+                        label = 'Lost'; 
+                        isClickable = true;
+                    }
+                    else if (data === 'return') { 
+                        // CHECK FOR OPTION 2 (Book Deleted)
+                        if (note.includes('Book Deleted')) {
+                             colorClass = 'resolved'; // Purple
+                             label = 'Resolved & Replaced';
+                        }
+                        // CHECK FOR OPTION 1 (Standard Resolution)
+                        else if (note.includes('Resolved Lost Book')) {
+                             colorClass = 'resolved'; // Purple
+                             label = 'Resolved'; 
+                        } 
+                        else {
+                             colorClass = 'available'; 
+                             label = 'Returned'; 
+                        }
+                    }
+                    
+                    if (isClickable && accNum) {
+                        return `<span class="status-tag ${colorClass}" style="cursor:pointer;" onclick="showBorrowerInfo('${accNum}', '${bookTitle.replace(/'/g, "\\'")}')">${label}</span>`;
+                    } else {
+                        return `<span class="status-tag ${colorClass}">${label}</span>`;
+                    }
+                }
+            },
+            {
+                targets: 5, // Due Date Column (Existing Logic)
+                render: function(data, type, row) {
+                    const actionType = row[3];
+                    if (actionType === 'lost') return data; // No overdue warning if lost
+                    if (!data || data === '-') return '-';
+                    if (row[6] && row[6] !== '-') return `<span style="text-decoration:line-through; color:gray">${data}</span>`;
+                    
+                    const dueDate = new Date(data);
+                    const now = new Date();
+                    const diffHours = (dueDate - now) / (1000 * 60 * 60);
+
+                    if (diffHours < 0) return `<span style="color:#ef4444; font-weight:bold;">${data} <br><small>⚠️ Warning: Overdue</small></span>`;
+                    else if (diffHours <= 5) return `<span style="color:#f97316; font-weight:bold;">${data} <br><small>⚠️ Due Soon</small></span>`;
+                    return data;
+                }
+            }
+        ]
+    });
+    loadTransactionsFromDB();
+    
+    // 2. Books
+    booksDT = new DataTable('#booksTable', { 
+        pageLength: 5, lengthChange: false, dom: 'rtip',
+        columnDefs: [{
+            targets: 4, 
+            render: function(data, type, row) {
+                const status = data ? data.toLowerCase() : 'available';
+                if (status !== 'available') {
+                    return `<span class="status-tag ${status} clickable-status" onclick="showBorrowerInfo('${row[3]}', '${row[0]}')">${data}</span>`;
+                }
+                return `<span class="status-tag available">${data}</span>`;
+            }
+        }]
+    });
+    loadBooks();
+
+    document.getElementById('bookAccSearch').addEventListener('input', (e) => booksDT.search(e.target.value).draw());
+    document.getElementById('action_type').addEventListener('change', updateInterfaceForAction);
+
+    $('#booksTable tbody').on('click', 'tr', function() {
+        if(document.getElementById('action_type').value !== 'borrow') return;
+        if(event.target.classList.contains('status-tag')) return; // Don't select row if status clicked
+
+        const data = booksDT.row(this).data();
+        if(data) {
+            clearBookSelection();
+            addBookToSelection(data[0], data[3]); 
+        }
+    });
+
+    startScanner();
+    updateInterfaceForAction();
+});
+
+// --- SELECTION ---
+function addBookToSelection(title, acc) {
+    const action = document.getElementById('action_type').value;
+    if(selectedBooks.has(acc)) {
+        selectedBooks.delete(acc);
+        selectedBookDetails = selectedBookDetails.filter(b => b.acc !== acc);
+    } else {
+        if(action === 'borrow') { selectedBooks.clear(); selectedBookDetails = []; }
+        selectedBooks.add(acc);
+        selectedBookDetails.push({title, acc});
+    }
+    updateReceiptUI();
+    renderBorrowList();
+}
+function clearBookSelection() {
+    selectedBooks.clear();
+    selectedBookDetails = [];
+    updateReceiptUI();
+    renderBorrowList();
+}
+function updateReceiptUI() {
+    const count = selectedBooks.size;
+    const card = document.getElementById('bookCard');
+    const placeholder = document.getElementById('bookPlaceholder');
+    const content = document.getElementById('bookDetailsContent');
+    if(count === 0) { card.classList.remove('active'); placeholder.style.display = 'block'; return; }
+    placeholder.style.display = 'none'; card.classList.remove('active'); void card.offsetWidth; card.classList.add('active');
+    if(count === 1) {
+        const b = selectedBookDetails[0];
+        content.innerHTML = `<p><strong style="font-size: 1.1rem;">${b.title}</strong></p><p style="font-family: monospace;">${b.acc}</p>`;
+    } else {
+        content.innerHTML = `<p><strong style="font-size: 1.1rem;">${count} Items Selected</strong></p><p style="font-size:0.9rem; color:var(--muted-text);">Click confirm to process all.</p>`;
+    }
+}
+
+// --- LIST LOGIC ---
+let currentStudentBorrows = [];
+function updateInterfaceForAction() {
+    const action = document.getElementById('action_type').value;
+    const sNum = document.getElementById('student_number').value;
+    document.getElementById('dueBox').style.display = (action === 'borrow') ? 'block' : 'none';
+    const borrowPanel = document.getElementById('studentBorrowsPanel');
+    clearBookSelection();
+    if ((action === 'return' || action === 'lost') && sNum) {
+        borrowPanel.style.display = 'block';
+        document.getElementById('instructionBox').style.display = 'none';
+        fetchStudentBorrows(sNum);
+    } else {
+        borrowPanel.style.display = 'none';
+        document.getElementById('instructionBox').style.display = 'block';
+    }
+}
+async function fetchStudentBorrows(studentNumber) {
+    const loading = document.getElementById('loadingBorrows');
+    const noMsg = document.getElementById('noBorrowsMsg');
+    const list = document.getElementById('borrowedList');
+    list.innerHTML = ''; loading.style.display = 'block'; noMsg.style.display = 'none';
+    try {
+        const res = await fetch(`/api/transactions?student_number=${studentNumber}&limit=100`);
+        const data = await res.json();
+        // FIX: Filter out 'Lost' books so they disappear from the active list
+        currentStudentBorrows = data.rows.filter(tx => 
+            tx.action_type === 'borrow' && 
+            !tx.returned_date && 
+            tx.book_status !== 'Lost'  // This logic hides Lost books from return list
+        );
+        loading.style.display = 'none';
+        if (currentStudentBorrows.length === 0) noMsg.style.display = 'block';
+        else renderBorrowList();
+    } catch (e) { loading.style.display = 'none'; }
+}
+function renderBorrowList() {
+    const list = document.getElementById('borrowedList');
+    list.innerHTML = ''; 
+    currentStudentBorrows.forEach(tx => {
+        const isSelected = selectedBooks.has(tx.accession_number);
+        const div = document.createElement('div');
+        div.className = `borrow-item ${isSelected ? 'selected' : ''}`;
+        div.onclick = () => addBookToSelection(tx.book_title, tx.accession_number);
+        div.innerHTML = `<div class="checkbox-mock"></div><div style="flex:1"><h5 style="margin:0; color:var(--text)">${tx.book_title}</h5><span style="font-size:0.8rem; color:var(--muted-text)">Accession: ${tx.accession_number}</span><span style="font-size:0.75rem; color:#f59e0b; display:block;">Due: ${cleanDate(tx.due_date)}</span></div>`;
+        list.appendChild(div);
+    });
+}
+
+function openExportModal(title, desc) {
+    document.getElementById('exportTitle').innerText = title;
+    document.getElementById('exportDesc').innerText = desc;
+    document.getElementById('exportModal').style.display = 'flex';
+}
+document.getElementById('confirmExportBtn').addEventListener('click', () => {
+    document.getElementById('exportModal').style.display = 'none';
+    if (targetExportButtonSelector) {
+        setTimeout(() => {
+            const realBtn = document.querySelector(targetExportButtonSelector);
+            if(realBtn) { realBtn.click(); targetExportButtonSelector = null; }
+        }, 300);
+    }
+});
+
+document.getElementById('submitBtn').addEventListener('click', async () => {
+    const sNum = document.getElementById('student_number').value;
+    const action = document.getElementById('action_type').value;
+    const due = document.getElementById('due_date').value;
+    if(!sNum) return alert('Please scan a Student first.');
+    if(selectedBooks.size === 0) return alert('Please select at least one book.');
+    if(action === 'borrow' && !due) return alert('Due date is required.');
+
+    // NEW: Lost Book Modal Logic
+    if(action === 'lost') {
+        document.getElementById('lostModal').style.display = 'flex';
+        return; // Stop normal submission
+    }
+
+    postTransaction(sNum, Array.from(selectedBooks), action, due, null);
+});
+
+function submitLostTransaction() {
+    const sNum = document.getElementById('student_number').value;
+    const resType = document.querySelector('input[name="lost_resolution"]:checked').value;
+    
+    const modalBtn = document.getElementById('confirmLostBtn');
+    const originalText = modalBtn.innerText;
+    modalBtn.disabled = true;
+    modalBtn.innerText = "⏳ Processing...";
+
+    // Slight delay to visualize, then submit
+    setTimeout(() => {
+        document.getElementById('lostModal').style.display = 'none';
+        modalBtn.disabled = false;
+        modalBtn.innerText = originalText;
+        postTransaction(sNum, Array.from(selectedBooks), 'lost', null, resType);
+    }, 300);
+}
+
+// Refactored POST Logic
+async function postTransaction(sNum, accNums, action, due, resType) {
+    const btn = document.getElementById('submitBtn');
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = "⏳ Processing...";
+
+    try {
+        const res = await fetch('/transaction/create', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ 
+                student_number: sNum, 
+                accession_numbers: accNums, 
+                action_type: action, 
+                due_date: due,
+                resolution_type: resType 
+            })
+        });
+        const data = await res.json();
+        if(res.ok) {
+            document.getElementById('successMessage').innerText = `Processed ${accNums.length} items successfully!`;
+            document.getElementById('successModal').style.display = 'flex';
+            loadTransactionsFromDB(); loadBooks(); clearBookSelection();
+            if (action !== 'borrow') fetchStudentBorrows(sNum);
+            if(window.loadMetrics) window.loadMetrics();
+        } else { alert('Error: ' + data.error); }
+    } catch(e) { alert('System Error: ' + e); }
+    finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+}
+
+function setStudent(name, num) {
+    document.getElementById('student_number').value = num;
+    document.getElementById('sname').textContent = name;
+    document.getElementById('sno').textContent = num;
+    document.getElementById('studentPlaceholder').style.display = 'none';
+    const card = document.getElementById('studentCard');
+    card.classList.remove('active'); void card.offsetWidth; card.classList.add('active');
+}
+function clearStudent() {
+    document.getElementById('student_number').value = '';
+    document.getElementById('studentCard').classList.remove('active');
+    document.getElementById('studentPlaceholder').style.display = 'block';
+    updateInterfaceForAction();
+}
+async function loadTransactionsFromDB() {
+    const res = await fetch('/api/transactions?limit=500');
+    const data = await res.json();
+    txnDT.clear();
+    
+    // We add r.accession_number as the last item (Index 8) so we can use it in the render function
+    data.rows.forEach(r => txnDT.row.add([
+        r.tx_id, 
+        r.student_number, 
+        r.book_title, 
+        r.action_type, 
+        cleanDate(r.tx_date), 
+        cleanDate(r.due_date), 
+        cleanDate(r.returned_date), 
+        r.note,
+        r.accession_number // <--- NEW: Added Accession Number at Index 8
+    ]));
+    txnDT.draw();
+}
+async function loadBooks() {
+    const res = await fetch('/api/books');
+    const data = await res.json();
+    booksDT.clear();
+    data.rows.forEach(b => booksDT.row.add([b.title, b.author, b.call_number, b.accession_number, b.status]));
+    booksDT.draw();
+}
+function startScanner() {
+    // 1. Ensure the library is initialized
+    if(!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+
+    // 2. Set square scanning box
+    const config = { 
+        fps: 10, 
+        qrbox: { width: 200, height: 200 }, 
+        aspectRatio: 1.0 
+    };
+
+    // 3. Start the camera
+    html5QrCode.start(
+        { facingMode: "environment" }, 
+        config, 
+        onScanSuccess, 
+        (err) => { /* silent failure */ }
+    )
+    .then(() => { 
+        document.getElementById('scanStatus').innerText = "📷 Ready";
+        
+        // --- MAX ZOOM LOGIC ---
+        try {
+            const [track] = html5QrCode.getRunningTrackCameraCapabilities();
+            const capabilities = track.getCapabilities();
+
+            if (capabilities.zoom) {
+                const zoomControl = document.getElementById('zoomControls');
+                const slider = document.getElementById('zoomSlider');
+
+                // Set slider constraints based on phone hardware
+                const maxZoomPossible = capabilities.zoom.max;
+                
+                slider.min = capabilities.zoom.min;
+                slider.max = maxZoomPossible;
+                slider.step = capabilities.zoom.step || 0.1;
+
+                // --- FORCE HIGHEST ZOOM ---
+                // We try for 10x. If the phone only supports 5x, we take 5x.
+                let targetZoom = 10.0; 
+                if (targetZoom > maxZoomPossible) {
+                    targetZoom = maxZoomPossible;
+                }
+
+                // Update UI and Camera
+                slider.value = targetZoom;
+                zoomControl.style.display = 'block';
+
+                html5QrCode.applyVideoConstraints({
+                    zoom: targetZoom
+                });
+                
+                // Update status to show we are zoomed in
+                document.getElementById('scanStatus').innerText = `📷 Zoom: ${targetZoom.toFixed(1)}x`;
+
+                // Manual Slider Control
+                slider.oninput = function() {
+                    const val = parseFloat(this.value);
+                    html5QrCode.applyVideoConstraints({ zoom: val });
+                    document.getElementById('scanStatus').innerText = `📷 Zoom: ${val.toFixed(1)}x`;
+                };
+            }
+        } catch (e) {
+            console.log("Zoom setup failed", e);
+        }
+    });
+}
+function onScanSuccess(decodedText) {
+    html5QrCode.pause();
+    fetch(`/api/student/${encodeURIComponent(decodedText)}`).then(r => r.json()).then(data => {
+        if(data.error) alert('Student Not Found');
+        else { setStudent(data.student_name, data.student_number); updateInterfaceForAction(); }
+        setTimeout(() => html5QrCode.resume(), 2000);
+    });
+}
+$.fn.dataTable.ext.search.push(
+    function(settings, data, dataIndex) {
+        if (settings.nTable.id !== 'txnTable') return true;
+        var min = document.getElementById('minDate').value;
+        var max = document.getElementById('maxDate').value;
+        var dateStr = data[4]; 
+        if (!dateStr || dateStr === '-') return true;
+        var rowDate = dateStr.substring(0, 10); 
+        if (min === "" && max === "") return true;
+        if (min === "" && rowDate <= max) return true;
+        if (min <= rowDate && max === "") return true;
+        if (min <= rowDate && rowDate <= max) return true;
+        return false;
+    }
+);
+</script>
+{% endblock %}

@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+{% block title %}Payment Terminal{% endblock %}
+{% block content %}
+
+<style>
+/* --- SCANNER & CARD STYLES --- */
+.scanner-box {
+  width: 100%; max-width: 320px; height: 320px; margin: 0 auto 20px;
+  background: #000; border-radius: 16px; overflow: hidden; position: relative;
+  box-shadow: var(--shadow); 
+  display: flex; /* Ensures content centers */
+  justify-content: center; 
+  align-items: center;
+}
+#reader { width: 100%; height: 100%; object-fit: cover; }
+#reader video { object-fit: cover; } /* Needed for camera feed scaling */
+
+/* ------------------------------------------- */
+/* NEW: Transaction Scanner Styles (From transaction.html) */
+/* ------------------------------------------- */
+
+/* Scanner box background overlay */
+.tx-overlay { 
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; 
+  display: flex; justify-content: center; align-items: center; 
+}
+
+/* The central square bounding box */
+.tx-box { 
+  width: 200px; height: 200px; position: relative; 
+  border: 2px solid rgba(255, 255, 255, 0.5); 
+  border-radius: 12px; 
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.6); 
+}
+
+/* Corner styles */
+.tx-box::before, .tx-box::after, .tx-corner-bl, .tx-corner-br { 
+  content: ''; position: absolute; width: 20px; height: 20px; 
+  border: 3px solid var(--accent); 
+  border-radius: 2px; box-shadow: 0 0 5px var(--accent); 
+}
+.tx-box::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+.tx-box::after { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+.tx-corner-bl { bottom: -2px; left: -2px; border-top: none; border-right: none; }
+.tx-corner-br { bottom: -2px; right: -2px; border-top: none; border-left: none; }
+
+/* Laser animation */
+.tx-laser { 
+  position: absolute; width: 100%; height: 2px; 
+  background: var(--accent); 
+  box-shadow: 0 0 10px var(--accent); 
+  animation: txScan 2s infinite linear; 
+}
+@keyframes txScan { 
+  0% { top: 5px; opacity: 0; } 
+  20% { opacity: 1; } 
+  80% { opacity: 1; } 
+  100% { top: 195px; opacity: 0; } 
+}
+/* ------------------------------------------- */
+  /* --- SCANNER & CARD STYLES --- */
+ /* --- SCANNER & CARD STYLES --- */
+.scanner-box {
+  width: 100%; max-width: 320px; height: 320px; margin: 0 auto 20px;
+  background: #000;
+  border-radius: 16px; overflow: hidden; position: relative;
+  box-shadow: var(--shadow); 
+  display: flex; 
+  justify-content: center; 
+  align-items: center;
+}
+
+/* 🔄 FIX: Aggressively force the video container and video element to full size */
+#reader { 
+  width: 100%; 
+  height: 100%; 
+  position: relative; /* Ensure proper positioning context */
+}
+
+/* Target the video element injected by the library */
+#reader video,
+#reader > div { 
+  width: 100% !important; 
+  height: 100% !important; /* Force 100% height */
+  object-fit: cover; 
+}
+
+/* ------------------------------------------- */
+/* NEW: Transaction Scanner Styles (From transaction.html) */
+/* ... (Ensure the rest of your scanner styles below this are present) ... */
+  
+  .bill-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 30px; text-align: center;
+    max-width: 500px; margin: 0 auto 40px auto; display: none; 
+    animation: slideUp 0.3s ease;
+  }
+  .bill-card.active { display: block; }
+  
+  .amount-display {
+    font-size: 3.5rem; font-weight: 800; color: #ef4444;
+    margin: 10px 0; letter-spacing: -1px;
+  }
+
+
+  /* Success Toast Message */
+.toast-notification {
+    visibility: hidden;
+    min-width: 300px;
+    background-color: #10b981; /* Green */
+    color: #fff;
+    text-align: center;
+    border-radius: 50px;
+    padding: 16px;
+    position: fixed;
+    z-index: 3000;
+    left: 50%;
+    top: 30px;
+    transform: translateX(-50%);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    font-size: 1rem;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 0.5s, top 0.5s;
+}
+
+.toast-notification.show {
+    visibility: visible;
+    opacity: 1;
+    top: 50px;
+}
+  .amount-display.zero { color: #10b981; } 
+  
+  .student-header { font-size: 1.2rem; color: var(--text); margin-bottom: 5px; }
+  .student-sub { font-family: monospace; color: var(--accent); font-size: 1rem; }
+  
+  .pay-btn {
+    background: #10b981; color: white; width: 100%; padding: 15px;
+    border-radius: 12px; font-size: 1.2rem; font-weight: bold;
+    border: none; cursor: pointer; margin-top: 20px;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+  .pay-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .pay-btn:disabled { background: #374151; cursor: not-allowed; box-shadow: none; }
+
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* --- TABLE STYLES --- */
+  .history-section {
+      margin-top: 40px; padding-top: 20px; border-top: 1px dashed var(--border);
+  }
+  .filters {
+      display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap;
+  }
+  .date-input {
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      padding: 8px; border-radius: 8px;
+  }
+  
+  /* DataTables Overrides for Dark Mode */
+  .dataTables_wrapper { color: var(--text); }
+  table.dataTable tbody tr { background-color: var(--surface); color: var(--text); }
+  table.dataTable tbody tr:hover { background-color: #1f2937; }
+  .dataTables_length select, .dataTables_filter input {
+      background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 5px; border-radius: 5px;
+  }
+  .dt-button {
+      background: var(--surface) !important; color: var(--accent) !important;
+      border: 1px solid var(--border) !important; border-radius: 6px !important;
+  }
+
+  /* --- LOADING SPINNER --- */
+  .spinner {
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    width: 36px; height: 36px; border-radius: 50%;
+    border-left-color: #10b981;
+    animation: spin 1s ease infinite;
+    margin: 0 auto;
+  }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+<div id="successToast" class="toast-notification">Payment Successful! Receipt sent.</div>
+<h1 style="text-align:center; color:var(--accent);">Penalty Payment</h1>
+
+<div class="container">
+  
+<div class="scanner-box">
+  <div id="reader"></div>
+  
+  <div class="tx-overlay">
+    <div class="tx-box">
+      <div class="tx-corner-bl"></div>
+      <div class="tx-corner-br"></div>
+      <div class="tx-laser"></div>
+    </div>
+  </div>
+  
+  <div id="scanStatus" style="position:absolute; bottom:10px; width:100%; text-align:center; color:var(--accent); font-weight:bold; text-shadow:0 2px 4px rgba(0,0,0,0.8); z-index: 20; pointer-events: none;">Initializing Camera...</div>
+</div>
+  <div id="scanStatus" style="text-align:center; color:var(--muted); margin-bottom:20px;">Camera Loading...</div>
+
+  <div id="billCard" class="bill-card">
+      <div class="student-header" id="stuName">Student Name</div>
+      <div class="student-sub" id="stuNumber">00-0000</div>
+      <hr style="border-color: var(--border); margin: 20px 0;">
+      <div style="font-size: 0.9rem; color: var(--muted-text); text-transform: uppercase; letter-spacing: 1px;">Total Penalty Due</div>
+      <div id="totalAmount" class="amount-display">₱0.00</div>
+      <div id="breakdown" style="text-align:left; background:rgba(0,0,0,0.2); padding:10px; border-radius:8px; font-size:0.85rem; color:var(--muted-text); max-height: 100px; overflow-y: auto;"></div>
+      <button id="payBtn" class="pay-btn" onclick="confirmPayment()">Pay Now</button>
+  </div>
+
+  <section class="card history-section">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+          <h3 style="color: var(--accent); margin:0;">Payment History</h3>
+      </div>
+      
+      <div class="filters">
+          <label>Filter Date:</label>
+          <input type="date" id="minDate" class="date-input" placeholder="Start Date">
+          <span style="color:var(--muted)">to</span>
+          <input type="date" id="maxDate" class="date-input" placeholder="End Date">
+          <button class="btn btn-sm" onclick="clearDates()" style="background:var(--surface); border:1px solid var(--border);">Clear</button>
+      </div>
+
+      <table id="paymentTable" class="display" style="width:100%">
+          <thead>
+              <tr>
+                  <th>ID</th>
+                  <th>Student No</th>
+                  <th>Name</th>
+                  <th>Amount</th>
+                  <th>Date Paid</th>
+              </tr>
+          </thead>
+          <tbody></tbody>
+      </table>
+  </section>
+
+</div>
+
+<div id="confirmModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:var(--surface); padding:30px; border-radius:16px; width:90%; max-width:400px; text-align:center; border:1px solid var(--border);">
+      <h2 style="color:#10b981; margin-top:0;">Confirm Payment?</h2>
+      <p style="font-size:1.1rem;">Receive <b style="color:white;" id="modalAmount"></b>?</p>
+      
+      <!-- Buttons (Visible initially) -->
+      <div id="modalActions" style="display:flex; gap:10px; margin-top:20px;">
+          <button onclick="processPayment()" style="flex:1; background:#10b981; color:white; padding:12px; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">Yes, Confirm</button>
+          <button onclick="closeModal()" style="flex:1; background:var(--bg); color:var(--text); padding:12px; border-radius:8px; border:1px solid var(--border); font-weight:bold; cursor:pointer;">Cancel</button>
+      </div>
+
+      <!-- Loading State (Hidden initially) -->
+      <div id="modalLoading" style="display:none; margin-top:20px;">
+          <div class="spinner"></div>
+          <p style="margin-top:10px; color:var(--muted-text); font-size:0.9rem;">Processing payment...</p>
+      </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://cdn.datatables.net/2.0.7/css/dataTables.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/3.0.2/css/buttons.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.0.7/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.0.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.0.2/js/buttons.print.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/3.0.2/js/buttons.html5.min.js"></script>
+<script src="{{ url_for('static', filename='js/html5-qrcode.min.js') }}"></script>
+
+<script>
+let html5QrCode;
+let currentStudent = null;
+let currentTotal = 0;
+let table;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initialize Scanner
+    html5QrCode = new Html5Qrcode("reader");
+    const config = { fps: 10, qrbox: 250 };
+    
+    // Start Camera
+    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+    .then(() => document.getElementById('scanStatus').innerText = "Ready to Scan")
+    .catch(err => {
+        console.error(err);
+        document.getElementById('scanStatus').innerText = "Camera Error: " + err;
+    });
+
+    // 2. Initialize DataTable
+    table = new DataTable('#paymentTable', {
+        ajax: '/api/payments_history', 
+        columns: [
+            { data: 'payment_id' },
+            { data: 'student_number' },
+            { data: 'student_name' },
+            { 
+                data: 'amount',
+                render: function(data) { 
+                    let val = parseFloat(data);
+                    let formatted = isNaN(val) ? "0.00" : val.toFixed(2);
+                    return `<span style="color:#10b981; font-weight:bold;">₱${formatted}</span>`; 
+                }
+            },
+            { data: 'date' }
+        ],
+        order: [[4, 'desc']], 
+        dom: 'Bfrtip', 
+        buttons: [
+            { extend: 'print', text: '🖨️ Print' },
+            { extend: 'csv', text: '📄 Export CSV' }
+        ],
+        pageLength: 10
+    });
+
+    // 3. Custom Date Filtering
+    $.fn.dataTable.ext.search.push(
+        function(settings, data, dataIndex) {
+            var min = document.getElementById('minDate').value;
+            var max = document.getElementById('maxDate').value;
+            var dateStr = data[4]; 
+            if (!dateStr) return false;
+            var rowDate = dateStr.substring(0, 10); 
+
+            if (min === "" && max === "") return true;
+            if (min === "" && rowDate <= max) return true;
+            if (min <= rowDate && max === "") return true;
+            if (min <= rowDate && rowDate <= max) return true;
+            return false;
+        }
+    );
+
+    $('#minDate, #maxDate').on('change', function() { table.draw(); });
+});
+
+function clearDates() {
+    document.getElementById('minDate').value = '';
+    document.getElementById('maxDate').value = '';
+    table.draw();
+}
+
+// --- TOAST NOTIFICATION ---
+function showToast() {
+    const toast = document.getElementById("successToast");
+    toast.className = "toast-notification show";
+    setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
+}
+
+// --- SCANNER LOGIC ---
+function onScanFailure(error) {
+    // handle scan failure
+}
+
+function onScanSuccess(decodedText) {
+    html5QrCode.pause();
+    const cleanText = decodedText.trim();
+    fetchStudentData(cleanText);
+}
+
+async function fetchStudentData(sNum) {
+    document.getElementById('scanStatus').innerText = "Fetching Data...";
+    
+    try {
+        const sRes = await fetch(`/api/student/${encodeURIComponent(sNum)}`);
+        
+        const contentType = sRes.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            throw new Error("Server returned invalid response");
+        }
+
+        const sData = await sRes.json();
+        
+        if(sData.error) { 
+            alert('Student Not Found: ' + sNum); 
+            html5QrCode.resume(); 
+            document.getElementById('scanStatus').innerText = "Ready to Scan";
+            return; 
+        }
+        
+        currentStudent = sData;
+        document.getElementById('stuName').innerText = sData.student_name;
+        document.getElementById('stuNumber').innerText = sData.student_number;
+
+        const tRes = await fetch(`/api/transactions?student_number=${sData.student_number}&limit=100`);
+        const tData = await tRes.json();
+        
+        calculateTotal(tData.rows);
+        document.getElementById('billCard').classList.add('active');
+        document.getElementById('scanStatus').innerText = "Scan Successful";
+        
+    } catch(e) {
+        console.error(e);
+        alert("System Error: " + e.message);
+        html5QrCode.resume();
+        document.getElementById('scanStatus').innerText = "Ready to Scan";
+    }
+}
+
+function calculateTotal(transactions) {
+    let total = 0;
+    const breakdownDiv = document.getElementById('breakdown');
+    breakdownDiv.innerHTML = '';
+    const now = new Date();
+    const RATE = 5.00;
+    const GRACE_PERIOD_MINS = 15;
+
+    transactions.forEach(t => {
+        if(t.is_penalty_paid === 1) return; 
+        if(!t.due_date || t.due_date === '-') return;
+
+        let refDate = now;
+        if(t.returned_date && t.returned_date !== '-') {
+            refDate = new Date(t.returned_date.replace(' ','T'));
+        }
+
+        const dueDate = new Date(t.due_date.replace(' ','T'));
+        const diffMs = refDate - dueDate;
+        const diffMinutes = diffMs / (1000 * 60);
+
+        if(diffMinutes > GRACE_PERIOD_MINS) {
+            const diffHours = diffMs / (1000 * 60 * 60);
+            const penalty = Math.ceil(diffHours) * RATE;
+            total += penalty;
+            
+            const item = document.createElement('div');
+            item.style.cssText = "display:flex; justify-content:space-between; margin-bottom:4px;";
+            
+            const safeTitle = (t.book_title || "Unknown Book").toString();
+            item.innerHTML = `<span>${safeTitle.substring(0,20)}...</span> <span>₱${penalty.toFixed(2)}</span>`;
+            breakdownDiv.appendChild(item);
+        }
+    });
+
+    currentTotal = total;
+    const display = document.getElementById('totalAmount');
+    display.innerText = `₱${total.toFixed(2)}`;
+    
+    const btn = document.getElementById('payBtn');
+    if(total <= 0) {
+        display.classList.add('zero');
+        btn.disabled = true;
+        btn.innerText = "No Pending Penalties";
+    } else {
+        display.classList.remove('zero');
+        btn.disabled = false;
+        btn.innerText = "Pay Now";
+    }
+}
+
+function confirmPayment() {
+    document.getElementById('modalAmount').innerText = `₱${currentTotal.toFixed(2)}`;
+    document.getElementById('modalActions').style.display = 'flex';
+    document.getElementById('modalLoading').style.display = 'none';
+    document.getElementById('confirmModal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('confirmModal').style.display = 'none';
+}
+
+async function processPayment() {
+    // Show loading inside the modal
+    document.getElementById('modalActions').style.display = 'none';
+    document.getElementById('modalLoading').style.display = 'block';
+
+    try {
+        const res = await fetch('/api/pay', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ student_number: currentStudent.student_number, amount: currentTotal })
+        });
+        const data = await res.json();
+        
+        if(data.success) {
+            // Short delay to ensure the user sees the "Processing..." text briefly
+            setTimeout(() => {
+                // 1. Close the modal (hides the loading spinner)
+                closeModal();
+                
+                // 2. Show the Green Toast Popup
+                showToast();
+
+                // 3. Refresh Data
+                table.ajax.reload(); 
+                document.getElementById('billCard').classList.remove('active');
+                html5QrCode.resume();
+                document.getElementById('scanStatus').innerText = "Ready to Scan";
+            }, 800);
+        } else {
+            alert("Error: " + data.error);
+            document.getElementById('modalActions').style.display = 'flex';
+            document.getElementById('modalLoading').style.display = 'none';
+        }
+    } catch(e) { 
+        alert("Network Error"); 
+        document.getElementById('modalActions').style.display = 'flex';
+        document.getElementById('modalLoading').style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

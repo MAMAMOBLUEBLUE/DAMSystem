@@ -1,0 +1,153 @@
+/*
+SQLyog Community v13.3.0 (64 bit)
+MySQL - 10.4.32-MariaDB : Database - qrdatabase
+*********************************************************************
+*/
+
+/*!40101 SET NAMES utf8 */;
+
+/*!40101 SET SQL_MODE=''*/;
+
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/`qrdatabase` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
+
+USE `qrdatabase`;
+
+/*Table structure for table `books` */
+
+DROP TABLE IF EXISTS `books`;
+
+CREATE TABLE `books` (
+  `accession_number` varchar(100) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `author` varchar(255) DEFAULT NULL,
+  `publisher` varchar(255) DEFAULT NULL,
+  `YEAR` varchar(20) DEFAULT NULL,
+  `call_number` varchar(100) DEFAULT NULL,
+  `STATUS` varchar(50) DEFAULT 'Available',
+  PRIMARY KEY (`accession_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+/*Data for the table `books` */
+
+insert  into `books`(`accession_number`,`title`,`author`,`publisher`,`YEAR`,`call_number`,`STATUS`) values 
+('ACC-0001','Python Basics','Mark Smith','TechPress','2023','QA76.73.P98','Available'),
+('ACC-0002','Web Development with PHP','Laura Johnson','CodeHouse','2022','QA76.73.P224','Borrowed'),
+('ACC-0003','Data Structures and Algorithms','John Miller','EduTech','2021','QA76.9.D35','Available'),
+('ACC-0004','Introduction to Database Systems','Nancy Drew','Pearson','2020','QA76.9.D26','Available'),
+('ACC-0005','Machine Learning Fundamentals','Andrew Lee','AI Press','2023','QA76.9.M37','Borrowed'),
+('ACC-0006','Operating Systems Concepts','James Peterson','Wiley','2019','QA76.76.O63','Borrowed'),
+('ACC-0007','Networking Essentials','Sarah Collins','TechWorld','2021','TK5105.5','Available'),
+('ACC-0008','Object-Oriented Programming in Java','Michael Brown','CodeMaster','2022','QA76.73.J38','Borrowed'),
+('ACC-0009','Cybersecurity Principles','Emma Davis','CyberPress','2023','QA76.9.A25','Borrowed'),
+('ACC-0010','Software Engineering: A Practitioner’s Approach','Roger S. Pressman','McGraw-Hill','2020','QA76.758','Available'),
+('ACC-0011','Computer Networks','Andrew S. Tanenbaum','Pearson','2021','TK5105.5.T36','Borrowed'),
+('ACC-0012','Clean Code','Robert C. Martin','Prentice Hall','2019','QA76.76.D47','Borrowed'),
+('ACC-0013','Deep Learning','Ian Goodfellow','MIT Press','2016','QA76.9.D43','Borrowed'),
+('ACC-0014','Fluent Python','Luciano Ramalho','O\'Reilly Media','2022','QA76.73.P98 R35','Available'),
+('ACC-0015','The Pragmatic Programmer','Andrew Hunt; David Thomas','Addison-Wesley','2019','QA76.76.D47 H86','Available'),
+('ACC-0016','Intro to C Programming','Dennis Ritchie','TechClassics','2018','QA76.73.C15','Available'),
+('ACC-0017','HTML & CSS: Design and Build Websites','Jon Duckett','Wiley','2018','TK5105.8885.H85','Borrowed'),
+('ACC-0018','You Don’t Know JS Yet','Kyle Simpson','Getify','2020','QA76.73.J38 S56','Available'),
+('ACC-0019','Linux Command Line Basics','William Shotts','No Starch Press','2021','QA76.76.O63 S56','Available'),
+('ACC-0020','Agile Project Management','Ken Schwaber','Pearson','2020','HD69.P75 S39','Available');
+
+/*Table structure for table `due_soon_notifications` */
+
+DROP TABLE IF EXISTS `due_soon_notifications`;
+
+CREATE TABLE `due_soon_notifications` (
+  `tx_id` varchar(80) NOT NULL,
+  `student_number` varchar(50) NOT NULL,
+  `accession_number` varchar(100) NOT NULL,
+  `sent_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`tx_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+/*Data for the table `due_soon_notifications` */
+
+insert  into `due_soon_notifications`(`tx_id`,`student_number`,`accession_number`,`sent_at`) values 
+('2d418184-576','23-0717','ACC-0009','2025-11-04 00:28:20'),
+('95013040-da4','23-0717','ACC-0001','2025-11-03 22:55:10'),
+('96073d73-2af','23-0717','ACC-0012','2025-11-04 02:43:33'),
+('e6d34227-271','23-0717','ACC-0006','2025-11-04 00:17:04');
+
+/*Table structure for table `students` */
+
+DROP TABLE IF EXISTS `students`;
+
+CREATE TABLE `students` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `student_number` varchar(50) NOT NULL,
+  `student_name` varchar(200) NOT NULL,
+  `course` varchar(100) DEFAULT NULL,
+  `department` varchar(100) DEFAULT NULL,
+  `contact` varchar(100) DEFAULT NULL,
+  `PASSWORD` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `student_number` (`student_number`)
+) ENGINE=InnoDB AUTO_INCREMENT=51 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+/*Data for the table `students` */
+
+insert  into `students`(`id`,`student_number`,`student_name`,`course`,`department`,`contact`,`PASSWORD`) values 
+(31,'23-0718','Lady Cielo Pagusan','BSBA-FM','Business Administration','ladycielo.pagusan@gmail.com','1234'),
+(32,'23-0719','Mark Angelo Torres','BSIT','Information Technology','mark.torres23@gmail.com','1234'),
+(33,'23-0720','Jasper Rocutan','BSCE','Civil Engineering','jasper.rocutan@gmail.com','1234'),
+(34,'23-0721','Mellisha Ann Bernardo','BSN','Nursing','mellisha.bernardo@gmail.com','1234'),
+(35,'23-0722','Justin Picker','BSA','Accountancy','justin.picker@gmail.com','1234'),
+(36,'23-0723','Steven Clark','BSIT','Information Technology','steven.clark@gmail.com','1234'),
+(37,'23-0724','Nicole Hernandez','BSEd','Education','nicole.hernandez@gmail.com','1234'),
+(38,'23-0725','James Villanueva','BSCS','Computer Science','james.villanueva@gmail.com','1234'),
+(39,'23-0726','Lindsey Marquez','BSHRM','Hospitality Management','lindsey.marquez@gmail.com','1234'),
+(40,'23-0727','Carlo Ramirez','BSME','Mechanical Engineering','carlo.ramirez@gmail.com','1234'),
+(41,'23-0728','Angela Cruz','BS Psych','Psychology','angela.cruz@gmail.com','1234'),
+(42,'23-0729','Brian Santos','BSCS','Computer Science','brian.santos@gmail.com','1234'),
+(43,'23-0730','Dianne Lopez','BSIT','Information Technology','dianne.lopez@gmail.com','1234'),
+(44,'23-0731','Ethan Navarro','BSA','Accountancy','ethan.navarro@gmail.com','1234'),
+(45,'23-0732','Faith Dela Cruz','BSN','Nursing','faith.delacruz@gmail.com','1234'),
+(46,'23-0733','Gina Morales','BSBA-FM','Business Administration','gina.morales@gmail.com','1234'),
+(47,'23-0734','Hector Lim','BSCE','Civil Engineering','hector.lim@gmail.com','1234'),
+(48,'23-0735','Ivy Gomez','BSCS','Computer Science','ivy.gomez@gmail.com','1234'),
+(49,'23-0736','Kenji Tan','BSIT','Information Technology','kenji.tan@gmail.com','1234'),
+(50,'23-0717','Aldrin S. Samson','BSCS','CCSICT','aldrinsamson07@gmail.com','1234');
+
+/*Table structure for table `transactions` */
+
+DROP TABLE IF EXISTS `transactions`;
+
+CREATE TABLE `transactions` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `tx_id` varchar(80) NOT NULL,
+  `student_number` varchar(50) NOT NULL,
+  `accession_number` varchar(100) DEFAULT NULL,
+  `call_number` varchar(100) DEFAULT NULL,
+  `action_type` enum('borrow','return','lost') NOT NULL,
+  `DATE` datetime NOT NULL DEFAULT current_timestamp(),
+  `due_date` datetime DEFAULT NULL,
+  `returned_date` datetime DEFAULT NULL,
+  `note` text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `tx_id` (`tx_id`),
+  KEY `accession_number` (`accession_number`),
+  KEY `student_number` (`student_number`),
+  CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`accession_number`) REFERENCES `books` (`accession_number`) ON DELETE SET NULL,
+  CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`student_number`) REFERENCES `students` (`student_number`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=40 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+/*Data for the table `transactions` */
+
+insert  into `transactions`(`id`,`tx_id`,`student_number`,`accession_number`,`call_number`,`action_type`,`DATE`,`due_date`,`returned_date`,`note`) values 
+(35,'95013040-da4','23-0717','ACC-0001','QA76.73.P98','borrow','2025-11-03 22:51:02','2025-11-04 03:52:00',NULL,NULL),
+(36,'e6d34227-271','23-0717','ACC-0006','QA76.76.O63','borrow','2025-11-04 00:13:23','2025-11-04 05:15:00',NULL,NULL),
+(37,'2d418184-576','23-0717','ACC-0009','QA76.9.A25','borrow','2025-11-04 00:22:11','2025-11-04 02:22:00',NULL,NULL),
+(38,'96073d73-2af','23-0717','ACC-0012','QA76.76.D47','borrow','2025-11-04 02:39:53','2025-11-04 07:41:00',NULL,NULL),
+(39,'0e86d3fd-be9','23-0717','ACC-0001','QA76.73.P98','return','2025-11-04 02:42:53',NULL,'2025-11-04 02:42:53',NULL);
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;

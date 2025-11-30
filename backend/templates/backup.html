@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}System Backup & Restore{% endblock %}
+{% block content %}
+
+<style>
+  .backup-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  
+  .stats-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: var(--shadow);
+  }
+  
+  .icon-box {
+    width: 50px; height: 50px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    background: rgba(255, 122, 26, 0.1);
+    color: var(--accent);
+  }
+  
+  .stat-info h3 { margin: 0; font-size: 1.5rem; color: #fff; }
+  .stat-info p { margin: 0; color: var(--muted-text); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* Two Column Layout for Actions */
+  .actions-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 20px;
+  }
+  @media (max-width: 900px) { .actions-container { grid-template-columns: 1fr; } }
+
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px;
+    text-align: center;
+  }
+
+  .backup-panel { background: linear-gradient(145deg, #111827 0%, #0f172a 100%); }
+  .restore-panel { background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.3); }
+
+  .btn-lg {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%;
+    padding: 16px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    margin-top: 15px;
+  }
+
+  .btn-download {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255, 122, 26, 0.3);
+  }
+  .btn-download:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 122, 26, 0.4); }
+
+  .btn-email {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-email:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-restore {
+    background: #ef4444;
+    color: white;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+  }
+  .btn-restore:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4); }
+
+  /* DISABLED STATE */
+  .btn-lg.disabled, .btn-lg:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      pointer-events: none; /* Prevents clicking */
+      filter: grayscale(0.5);
+  }
+
+  .file-input-wrapper {
+    margin: 20px 0;
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+    width: 100%;
+  }
+  .file-input-wrapper input[type=file] {
+    font-size: 100px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .file-input-btn {
+    border: 2px dashed var(--border);
+    color: var(--muted-text);
+    background: var(--bg);
+    padding: 20px;
+    border-radius: 12px;
+    display: block;
+    cursor: pointer;
+  }
+  .file-input-wrapper:hover .file-input-btn {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Messages */
+  .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+  .alert-success { background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #10b981; }
+  .alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444; }
+  .alert-info { background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; color: #3b82f6; }
+</style>
+
+<h1 style="color: var(--accent);">System Backup & Restore</h1>
+<p style="color: var(--muted-text); margin-bottom: 20px;">Manage database records and assets.</p>
+
+<!-- MESSAGES -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<!-- STATS -->
+<div class="backup-grid">
+    <div class="stats-card">
+        <div class="icon-box">👥</div>
+        <div class="stat-info"><h3>{{ stats.students }}</h3><p>Students</p></div>
+    </div>
+    <div class="stats-card">
+        <div class="icon-box">📚</div>
+        <div class="stat-info"><h3>{{ stats.books }}</h3><p>Books</p></div>
+    </div>
+    <div class="stats-card">
+        <div class="icon-box">🔄</div>
+        <div class="stat-info"><h3>{{ stats.transactions }}</h3><p>History</p></div>
+    </div>
+    <div class="stats-card">
+        <div class="icon-box">🖼️</div>
+        <div class="stat-info"><h3>{{ stats.qrcodes }}</h3><p>QR Images</p></div>
+    </div>
+</div>
+
+<div class="actions-container">
+    
+    <!-- LEFT: EXPORT -->
+    <div class="panel backup-panel">
+        <h2 style="color: white; margin-top: 0;">📦 Backup Data</h2>
+        <p style="color: var(--muted-text); font-size: 0.9rem;">
+            Compresses all Database Tables (CSV) and Student QR Codes (Images) into a single <strong>.ZIP</strong> file.
+        </p>
+
+        <!-- DOWNLOAD BUTTON -->
+        <a href="{{ url_for('download_backup', type='all') }}" 
+           class="btn-lg btn-download" 
+           id="dlBtn"
+           onclick="handleDownload(this)">
+            <span>⬇️</span> Download Backup ZIP
+        </a>
+
+        <!-- EMAIL FORM -->
+        <form action="{{ url_for('email_backup') }}" method="POST" onsubmit="handleEmailSubmit(this)">
+            <button type="submit" class="btn-lg btn-email" id="emailBtn">
+                📧 Send ZIP to Admin Email
+            </button>
+        </form>
+
+        <div style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+            <p style="color: var(--muted-text); font-size: 0.8rem; margin-bottom: 10px;">Quick CSV Export:</p>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <a href="{{ url_for('download_backup', type='students') }}" style="color:var(--accent); text-decoration:none; font-size:0.85rem;">Students</a> •
+                <a href="{{ url_for('download_backup', type='books') }}" style="color:var(--accent); text-decoration:none; font-size:0.85rem;">Books</a> •
+                <a href="{{ url_for('download_backup', type='transactions') }}" style="color:var(--accent); text-decoration:none; font-size:0.85rem;">Transactions</a> •
+                <a href="{{ url_for('download_backup', type='payments') }}" style="color:var(--accent); text-decoration:none; font-size:0.85rem;">Payments</a> •
+                <a href="{{ url_for('download_backup', type='lost_book_resolutions') }}" style="color:var(--accent); text-decoration:none; font-size:0.85rem;">Lost Resolutions</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: RESTORE -->
+    <div class="panel restore-panel">
+        <h2 style="color: #ef4444; margin-top: 0;">⚠️ Restore System</h2>
+        <p style="color: var(--muted-text); font-size: 0.9rem;">
+            Upload a <strong>.ZIP</strong> file to restore.
+            <br><span style="color:#ef4444; font-weight:bold;">Warning: This will WIPE current data and replace it.</span>
+        </p>
+
+        <form action="{{ url_for('restore_backup') }}" method="POST" enctype="multipart/form-data" onsubmit="handleRestoreSubmit(this)">
+            <div class="file-input-wrapper">
+                <label class="file-input-btn" id="fileLabel">
+                    📂 Click to Select Backup ZIP
+                </label>
+                <input type="file" name="backup_file" accept=".zip" required onchange="updateFileName(this)">
+            </div>
+            
+            <button type="submit" class="btn-lg btn-restore" id="restoreBtn" onclick="return confirm('⚠️ CRITICAL WARNING ⚠️\n\nThis will DELETE ALL current data and replace it with the backup.\n\nAre you sure you want to proceed?');">
+                🔄 Start Restoration
+            </button>
+        </form>
+    </div>
+
+</div>
+
+<script>
+function updateFileName(input) {
+    const label = document.getElementById('fileLabel');
+    if (input.files && input.files.length > 0) {
+        label.innerText = "📄 " + input.files[0].name;
+        label.style.borderColor = "var(--accent)";
+        label.style.color = "var(--text)";
+    }
+}
+
+function handleDownload(btn) {
+    // Visual feedback for download
+    const originalText = btn.innerHTML;
+    btn.classList.add('disabled');
+    btn.innerHTML = "⏳ Generating ZIP...";
+    
+    // Re-enable after 5 seconds (download usually starts fast, but we prevent rapid clicking)
+    setTimeout(() => {
+        btn.classList.remove('disabled');
+        btn.innerHTML = originalText;
+    }, 5000);
+}
+
+function handleEmailSubmit(form) {
+    const btn = form.querySelector('button');
+    btn.disabled = true;
+    btn.innerHTML = "⏳ Sending Email...";
+    // Form will submit and page will reload with flash message
+}
+
+function handleRestoreSubmit(form) {
+    // Check if file is selected first (handled by 'required' attr mostly, but safe to rely on confirm)
+    const btn = form.querySelector('button');
+    // Allow the confirm dialog to happen first. If 'return confirm' returns true, form submits.
+    // The 'disabled' state might prevent submission if set too early.
+    // We rely on the page reload to reset the button state.
+    // Just visual change is enough immediately after confirm returns true.
+    setTimeout(() => {
+        btn.innerHTML = "⏳ Restoring Data...";
+        btn.style.opacity = "0.7";
+        btn.style.pointerEvents = "none";
+    }, 100);
+}
+</script>
+
+{% endblock %}

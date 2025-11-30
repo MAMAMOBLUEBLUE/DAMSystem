@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% block title %}Student Details{% endblock %}
+
+{% block content %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+  :root {
+    --card-bg: #1e293b; 
+    --card-surface: #0f172a;
+    --print-bg: #0f172a;
+  }
+
+  /* COPY OF DASHBOARD STYLES */
+  .id-section-wrapper { display: flex; flex-direction: column; align-items: center; gap: 15px; margin: 30px 0; }
+
+  #printableID {
+    width: 400px; height: 240px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: row; padding: 20px;
+    color: white; font-family: 'Segoe UI', sans-serif;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+
+  #printableID::before {
+    content: ''; position: absolute; top:0; left:0; bottom:0; width: 8px; 
+    background: var(--accent);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+
+  .id-left { flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding-left: 15px; }
+  .id-right { width: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+  .id-header { display: flex; align-items: center; margin-bottom: 10px; }
+  .logo-img { width: 48px; height: 48px; margin-right: 12px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+  .dam-logo-right { width: 60px; height: auto; margin-bottom: 10px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+
+  .uni-name { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; line-height: 1.2; color: white; }
+  .pass-label { font-size: 0.75rem; font-weight: 600; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+
+  .student-info h2 { margin: 0; font-size: 1.15rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+  .student-info .st-no { font-family: monospace; font-size: 1.1rem; color: var(--accent); margin-top: 4px; display: block; letter-spacing: 1px; }
+  .student-info .dept { font-size: 0.75rem; color: var(--muted-text); margin-top: 4px; }
+
+  .qr-box { background: white; padding: 6px; border-radius: 8px; }
+  .qr-box img { width: 100px; height: 100px; display: block; }
+  .validity { margin-top: 8px; font-size: 0.6rem; color: var(--muted-text); text-align: center; }
+
+  .id-actions { display: flex; gap: 10px; }
+  .action-btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;
+    display: flex; align-items: center; gap: 8px; transition: 0.2s;
+  }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-top: 20px; box-shadow: var(--shadow); }
+  
+  .status-borrow { color: var(--accent); font-weight: bold; }
+  .status-return { color: #10b981; font-weight: bold; }
+  .status-lost { color: #ef4444; font-weight: bold; }
+  
+  /* --- URGENCY COLORS --- */
+  .due-soon { color: #f97316 !important; font-weight: bold; } /* Orange */
+  .due-overdue { color: #ef4444 !important; font-weight: bold; } /* Red */
+  .penalty-active { color: #ef4444; font-weight: bold; font-family: monospace; }
+  .penalty-paid { color: #9ca3af; font-family: monospace; }
+
+  .page-link { color: var(--text); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+  .page-link:hover { color: var(--accent); }
+  .disabled-link { opacity: 0.5; pointer-events: none; cursor: default; }
+
+  /* --- PRINT LOGIC --- */
+  @media print {
+    body * { visibility: hidden; } 
+    #printableID, #printableID * { visibility: visible; }
+    #printableID {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0;
+      -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+      background-color: #0f172a !important; 
+      background-image: linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+      color: white !important; border: none;
+    }
+    #printableID::before { background-color: #ff7a1a !important; }
+    .pass-label, .st-no { color: #ff7a1a !important; }
+    .school-header, .dept, .validity { color: #9ca3af !important; }
+  }
+</style>
+
+<div class="container" style="max-width: 1000px;">
+
+    <h2 style="color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px;">Student Profile</h2>
+
+    <div class="id-section-wrapper">
+      <div id="printableID">
+        <div class="id-left">
+          <div>
+              <div class="id-header">
+                <img src="{{ url_for('static', filename='images/isulogo.png') }}" class="logo-img" alt="ISU Logo" style="background:white; padding:2px; border-radius:50%;">
+                <div class="uni-name">Isabela State<br>University</div>
+              </div>
+              <div class="pass-label">Library Access Pass</div>
+          </div>
+
+          <div class="student-info">
+            <h2 style="font-size: 0.7rem; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">Student Name</h2>
+            <h2 style="margin-top:2px;">{{ student.student_name }}</h2>
+            <span class="st-no">{{ student.student_number }}</span>
+            <div class="dept">{{ student.course }} | {{ student.department }}</div>
+          </div>
+        </div>
+
+        <div class="id-right">
+          <img src="{{ url_for('static', filename='images/logo.png') }}" class="dam-logo-right" alt="DAM Logo">
+          <div class="qr-box">
+            <img src="{{ url_for('serve_qr', filename=student.student_number + '.png') }}" alt="QR Code">
+          </div>
+          <div class="validity">Scan for Entry</div>
+        </div>
+      </div>
+
+      <div class="id-actions">
+        <button class="action-btn" onclick="downloadIDCard()"><span>⬇️</span> Download</button>
+        <button class="action-btn" onclick="window.print()"><span>🖨️</span> Print</button>
+      </div>
+    </div>
+
+    <div class="table-card" style="padding: 20px; margin-bottom: 30px;">
+        <h3 style="color: var(--text); margin-top: 0;">Contact Details</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+            <div>
+                <small style="color: var(--muted-text);">Email/Contact</small>
+                <div style="font-size: 1.1rem;">{{ student.contact }}</div>
+            </div>
+            <div>
+                <small style="color: var(--muted-text);">Course</small>
+                <div style="font-size: 1.1rem;">{{ student.course }}</div>
+            </div>
+            <div>
+                <small style="color: var(--muted-text);">Department</small>
+                <div style="font-size: 1.1rem;">{{ student.department }}</div>
+            </div>
+        </div>
+    </div>
+    <div style="background: var(--surface); padding: 15px; border-radius: 12px; margin-bottom: 20px; display:flex; justify-content:space-between; align-items:center; border: 1px solid var(--border);">
+    <h3 style="margin:0; color: var(--muted);">Total Unpaid Penalty</h3>
+    <h2 id="grandTotalDisplay" style="margin:0; color: #ef4444; font-size: 1.8rem;">₱0.00</h2>
+</div>
+
+    <h3 style="color: var(--accent);">Transaction History</h3>
+    <div class="table-card">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: rgba(0,0,0,0.2); text-align: left;">
+                    <th style="padding: 15px; color: var(--accent);">TX ID</th>
+                    <th style="padding: 15px; color: var(--accent);">Book</th>
+                    <th style="padding: 15px; color: var(--accent);">Action</th>
+                    <th style="padding: 15px; color: var(--accent);">Date</th>
+                    <th style="padding: 15px; color: var(--accent);">Due Date</th>
+                    <th style="padding: 15px; color: var(--accent);">Returned</th>
+                    <th style="padding: 15px; color: #ef4444;">Penalty</th> <!-- NEW -->
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transactions %}
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 15px;">{{ t.tx_id }}</td>
+                    <td style="padding: 15px;">{{ t.book_title or t.accession_number }}</td>
+                    <td style="padding: 15px;">
+                          {% if t.action_type == 'borrow' %}<span class="status-borrow">Borrowed</span>
+                          {% elif t.action_type == 'return' %}<span class="status-return">Returned</span>
+                          {% else %}<span class="status-lost">Lost</span>{% endif %}
+                    </td>
+                    <td style="padding: 15px;">{{ t.date }}</td>
+                    
+                    <!-- UPDATED DUE DATE LOGIC & DATA ATTRS -->
+                    <td style="padding: 15px;" class="due-date-cell" 
+    data-due="{{ t.due_date if t.due_date else '' }}"
+    data-returned-date="{{ t.returned_date if t.returned_date else '' }}"
+    data-paid="{{ t.is_penalty_paid }}"> {% if t.returned_date %}
+        <span style="color: var(--muted-text); text-decoration: line-through;">{{ t.due_date }}</span>
+    {% else %}
+        {{ t.due_date or '-' }}
+    {% endif %}
+</td>
+                    
+                    <td style="padding: 15px;">{{ t.returned_date or '-' }}</td>
+                    <td style="padding: 15px;" class="penalty-display">--</td> <!-- NEW -->
+                </tr>
+                {% else %}
+                <tr><td colspan="7" style="padding: 20px; text-align: center;">No history found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% set base_url = url_for('student_details', student_number=student.student_number) %}
+        <div style="padding:15px; text-align:right; background: rgba(0,0,0,0.2);">
+            <a href="{{ base_url }}?page=1" class="page-link {% if page <= 1 %}disabled-link{% endif %}">Previous</a>
+            <span style="font-size:0.9rem; color:var(--muted-text); margin:0 10px;">Page {{ page }} / {{ pages }}</span>
+            <a href="{{ base_url }}?page={{ page+1 }}" class="page-link {% if page >= pages %}disabled-link{% endif %}">Next</a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function downloadIDCard() { 
+    // ...    // ... keep your existing download function ...
+    const element = document.getElementById('printableID');
+    html2canvas(element, { backgroundColor: null, scale: 2, useCORS: true }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = '{{ student.student_number }}_ID.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    });
+  }
+
+  // --- UPDATED PENALTY LOGIC ---
+  document.addEventListener('DOMContentLoaded', () => {
+      const now = new Date();
+      const RATE_PER_HOUR = 5.00; 
+      const GRACE_PERIOD_MINS = 15; // <--- 15 Minute Grace Period defined here
+      let grandTotal = 0; 
+
+      const rows = document.querySelectorAll('tr');
+      
+      rows.forEach(row => {
+        const calcCell = row.querySelector('.date-calc-cell, .due-date-cell'); 
+        const penaltyCell = row.querySelector('.penalty-display');
+        
+        if(!calcCell || !penaltyCell) return;
+
+        const dueStr = calcCell.dataset.due;
+        const returnedStr = calcCell.dataset.returnedDate;
+        const isPaid = calcCell.dataset.paid == '1'; 
+
+        if (!dueStr || dueStr === 'None' || dueStr === '-') return;
+
+        const dueDate = new Date(dueStr.replace(' ', 'T'));
+        let referenceDate = now; 
+        let isReturned = false;
+
+        if (returnedStr && returnedStr !== 'None') {
+            referenceDate = new Date(returnedStr.replace(' ', 'T'));
+            isReturned = true;
+        }
+
+        // 1. Color Logic (Red/Orange)
+        if (!isReturned && !isPaid) {
+            const hoursUntilDue = (dueDate - now) / (1000 * 60 * 60);
+            if (hoursUntilDue < 0) {
+                calcCell.classList.add('due-overdue');
+                calcCell.innerHTML += '<br><small>⚠️ Overdue</small>';
+            } else if (hoursUntilDue <= 5) {
+                calcCell.classList.add('due-soon');
+                calcCell.innerHTML += '<br><small>⚠️ Due Soon</small>';
+            }
+        }
+
+        // 2. Penalty Calculation
+        const diffMs = referenceDate - dueDate;
+        const diffMinutes = diffMs / (1000 * 60); // Get difference in minutes
+
+        // ONLY CHARGE IF LATE BY MORE THAN 15 MINUTES
+        if (diffMinutes > GRACE_PERIOD_MINS) {
+            
+            const diffHours = diffMs / (1000 * 60 * 60);
+            const penaltyHours = Math.ceil(diffHours);
+            const penaltyAmount = penaltyHours * RATE_PER_HOUR;
+            const formattedAmount = '₱' + penaltyAmount.toFixed(2);
+            
+            if(isPaid) {
+                penaltyCell.innerHTML = `<span style="color:#10b981; font-weight:bold;">PAID</span><br><small style="color:gray;">was ${formattedAmount}</small>`;
+            } else {
+                grandTotal += penaltyAmount;
+                if (isReturned) {
+                    penaltyCell.innerHTML = `<span class="penalty-active" title="Unpaid">${formattedAmount}</span>`;
+                } else {
+                    penaltyCell.innerHTML = `<span class="penalty-active" title="Running">${formattedAmount}</span>`;
+                }
+            }
+        } else {
+            // Within grace period or not overdue
+            penaltyCell.innerHTML = '<span style="color:#10b981">₱0.00</span>';
+        }
+      });
+
+      // Update Total Header
+      const totalEl = document.getElementById('grandTotalDisplay');
+      if(totalEl) {
+          totalEl.innerText = '₱' + grandTotal.toFixed(2);
+          if(grandTotal === 0) {
+               totalEl.style.color = "#10b981";
+               totalEl.innerText = "₱0.00 (Cleared)";
+          } else {
+               totalEl.style.color = "#ef4444";
+          }
+      }
+  });
+</script>
+
+{% endblock %}

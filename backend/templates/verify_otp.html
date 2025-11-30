@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify OTP</title>
+  <style>
+    :root{ --accent:#ff7a1a; --accent-600:#e86e14; --bg:#0b1220; --surface:#0f172a; --border:#1f2937; --text:#e5e7eb; --muted:#9ca3af; --ring:#f59e0b; --shadow:0 18px 48px rgba(0,0,0,.45), 0 2px 4px rgba(0,0,0,.35); }
+    *{ box-sizing:border-box }
+    html,body{ height:100% }
+    body{ margin:0; font-family: ui-sans-serif, system-ui, sans-serif; color:var(--text); background: radial-gradient(1200px 600px at -20% -20%, #101a33 0%, transparent 50%), radial-gradient(1000px 500px at 120% 120%, #1a2542 0%, transparent 50%), var(--bg); display:flex; align-items:center; justify-content:center; padding:24px; }
+    .login-card{ width: min(380px, 92vw); background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); padding: 26px 22px 22px; }
+    h2{ margin:6px 0 18px; text-align:center; font-weight:800; color:#fff; }
+    label{ display:block; font-size:.9rem; color:var(--muted); margin:8px 0 6px }
+    input{ width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:12px; background:#0b1224; color:var(--text); margin-bottom: 15px; }
+    input:focus{ outline:0; border-color:var(--ring); background:#0d1730; }
+    .btn{ width:100%; background: linear-gradient(90deg, var(--accent), var(--accent-600)); color:#fff; border:none; padding:12px 14px; border-radius:12px; font-weight:800; cursor:pointer; transition: filter .2s ease; }
+    .btn:hover{ filter:brightness(1.02) }
+    .error{ margin-top:12px; font-size:.95rem; background:#2b1212; border:1px solid #7f1d1d; color:#fca5a5; padding:10px 12px; border-radius:10px; text-align:center; }
+    .notice{ margin-top:12px; font-size:.95rem; background:#1a243b; border:1px solid #233253; color:#bfdbfe; padding:10px 12px; border-radius:10px; text-align:center; }
+    form { display: block; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="login-card" role="main">
+    <h2>Verify OTP</h2>
+
+    <form method="POST" action="{{ url_for('verify_otp') }}">
+      <label for="otp">Enter OTP:</label>
+      <input type="text" name="otp" id="otp" required placeholder="Enter OTP here">
+      <button class="btn" type="submit">Verify</button>
+    </form>
+
+    <form action="{{ url_for('resend_otp') }}" method="POST" style="margin-top: 15px;">
+        <button class="btn" type="submit" style="background: var(--border); color: var(--text);">Resend OTP</button>
+    </form>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+    {% if message %}
+      <div class="notice">{{ message }}</div>
+    {% endif %}
+
+  </div>
+</body>
+</html>
