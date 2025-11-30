@@ -413,7 +413,7 @@ def logout():
 # ========================================================
 
 @app.route('/backup')
-@admin_required
+
 def backup_page():
     if session.get('role') != 'admin': return redirect(url_for('login'))
     stats = {'students': 0, 'books': 0, 'transactions': 0, 'payments': 0, 'qrcodes': 0}
@@ -619,7 +619,7 @@ def restore_backup():
 # ========================================================
 
 @app.route('/index')
-@admin_required  # <--- PROTECTS THE ROUTE
+  # <--- PROTECTS THE ROUTE
 def index():
     return render_template('index.html')
 
@@ -673,7 +673,7 @@ def books_delete(accession_number):
         conn.close()
 
 @app.route('/books', methods=['GET'])
-@admin_required
+
 def books_list():
     if session.get('role') != 'admin': return redirect(url_for('login'))
     search = request.args.get('search', '').strip()
@@ -1030,7 +1030,7 @@ def api_student(student_number):
 # ========================================================
 
 @app.route('/transaction')
-@admin_required
+
 def transaction_page():
     if session.get('role') != 'admin': return redirect(url_for('login'))
     return render_template('transaction.html')
@@ -1227,7 +1227,7 @@ def api_transactions():
 # ========================================================
 
 @app.route('/payment')
-@admin_required
+
 def payment_page():
     if session.get('role') != 'admin': return redirect(url_for('login'))
     return render_template('payment.html')
@@ -1322,7 +1322,7 @@ def api_payments_history():
         conn.close()
 
 @app.route('/reports/transactions')
-@admin_required
+
 def reports_transactions():
     if session.get('role') != 'admin': return redirect(url_for('login'))
     conn = get_db_conn()
