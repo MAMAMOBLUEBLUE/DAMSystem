@@ -57,7 +57,30 @@ def add_header(response):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+# ========================================================
+# SECURITY DECORATORS
+# ========================================================
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'role' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'role' not in session:
+            return redirect(url_for('login'))
+        if session.get('role') != 'admin':
+            # Option: Redirect to student dashboard if they are a student trying to access admin
+            if session.get('role') == 'student':
+                return redirect(url_for('student_dashboard'))
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 # Email Configuration
@@ -931,7 +954,7 @@ def edit_student(student_number):
         conn.close()
 
 @app.route('/student/dashboard')
-  # <--- Requires ANY login (Admin or Student)
+@login_required  # <--- Requires ANY login (Admin or Student)
 def student_dashboard():
     # 1. If Student: Force them to view ONLY their own data
     if session['role'] == 'student':
@@ -945,7 +968,7 @@ def student_dashboard():
 
 # Rename your existing route to handle both cases cleanly:
 @app.route('/students/details/<student_number>')
-
+@login_required
 def student_details(student_number):
     # SECURITY CHECK:
     # If logged in as Student, ensure they are only viewing THEIR OWN number.

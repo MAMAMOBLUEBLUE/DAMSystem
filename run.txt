@@ -48,3 +48,46 @@ def payment_page():
 @admin_required
 def reports_transactions():
     # ... (rest of code)
+
+
+
+@app.route('/student/dashboard')
+@login_required  # <--- Requires ANY login (Admin or Student)
+def student_dashboard():
+
+
+@app.route('/students/details/<student_number>')
+@login_required
+def student_details(student_number):
+
+
+
+    git commit -m "Merge remote changes"
+
+
+
+
+    # ========================================================
+# SECURITY DECORATORS
+# ========================================================
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'role' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'role' not in session:
+            return redirect(url_for('login'))
+        if session.get('role') != 'admin':
+            # Option: Redirect to student dashboard if they are a student trying to access admin
+            if session.get('role') == 'student':
+                return redirect(url_for('student_dashboard'))
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
